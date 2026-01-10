@@ -1,6 +1,11 @@
 let id x = x
 
+module StringMap = Map.Make(String)
+
 module Pp = struct
+  let int f i = Format.fprintf f "%d" i
+  let string f s = Format.fprintf f "%S" s
+  let prefix s p f x = Format.fprintf f "%s%a" s p x
   let list sep pp f li =
     let rec print f = function
       | [] -> ()
@@ -63,33 +68,115 @@ module type Fixable3 = sig
     val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('a, 'b, 'c) t -> ('ra, 'rb, 'rc) t F.t
   end
 end
+module type Fixable4 = sig
+  type ('a, 'b, 'c, 'd) t
+  val pp : (Format.formatter -> 'a -> unit) ->
+           (Format.formatter -> 'b -> unit) ->
+           (Format.formatter -> 'c -> unit) ->
+           (Format.formatter -> 'd -> unit) ->
+           Format.formatter -> ('a, 'b, 'c, 'd) t -> unit
+  module Make : functor (F:Applicative) -> sig
+    val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('a, 'b, 'c, 'd) t -> ('ra, 'rb, 'rc, 'rd) t F.t
+  end
+end
+
+
+module MakeSurface3 (F : Fixable3) = struct
+  let fold (type acc) x =
+    let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
+    Fold.foldmap x
+  let map x =
+    let module Map = F.Make(Applicatives.Map) in
+    Map.foldmap x
+
+  let foldmap (type acc) x =
+    let module FoldMap = Applicatives.FoldMap(struct type t = acc end) in
+    let module M = F.Make(FoldMap) in
+    M.foldmap x
+end
 
 module Fix3 (F : Fixable3) = struct
-  type ('a, 'b) t = F of (('a, 'b) t, 'a, 'b) F.t
-  let fix a = F a
+  type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, 'a, 'b) F.t
 
-  module MakeApp (A:Applicative) = struct
+  let decoration (F (d, _)) = d
+  let fix a d = F (d, a)
+  let wrapAcc f (F (deco, x)) acc =
+    let acc, x = f x acc in acc, F (deco, x)
+
+  module MakeApp (A:Applicative) = struct (* C'est un traversable sur les deux autres variables, utilisable quand un objet de l'AST est inclu dans un autre AST (exemple : pattern matching dans expression) *)
     open A
     module S = F.Make(A)
-    let rec foldmap f g (F x) = ret (fun x -> F x) <*> S.foldmap (foldmap f g) f g x
+    let rec foldmap f g (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g) f g x
   end
 
-  module Surface = struct
-    let fold (type acc) f g h x =
-      let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
-      Fold.foldmap f g h x
+  (* Walkers pour les réécritures *)
 
-    let map f g h x =
-      let module Map = F.Make(Applicatives.Map) in
-      Map.foldmap f g h x
-  end
+  module Surface = MakeSurface3(F)
 
   module Deep = struct
-    let rec mapfg f g (F x) = F (Surface.map (mapfg f g) f g x)
-    let rec reduce f (F x) = f (Surface.map (reduce f) id id x) (* bottomup reduce *)
-    let map f = reduce (fun x -> F(f x)) (* map bottomup *)
+    let rec mapfg f g (F (d, x)) = F (d, Surface.map (mapfg f g) f g x)
+    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id x) (* bottomup reduce *)
+    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id x))
   end
 
-  let pp ppb ppc = Deep.reduce (fun x f -> F.pp (fun f g -> g f) ppb ppc f x)
+  module Traverse = struct
+    let rec foldmap f g h (F (d, x)) acc =
+      let acc, x = f (Surface.foldmap (foldmap f g h) g h) acc x in
+      acc, F (d, x)
+  end
+
+  (* pretty print *)
+  let pp ppb ppc = Deep.reduce (fun x f -> F.pp (fun f g -> g f) ppb ppc f x) (* TODO on pourrait gérer du parenthésage mais en vrai on s'en branle un peu pour ce projet *)
   let pp ppb ppc f p = pp ppb ppc p f
+end
+
+module FixMut  (F : Fixable4) (G : Fixable3) = struct
+
+  type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, ('deco, 'a, 'b) u, 'a, 'b) F.t
+  and ('deco, 'a, 'b) u = G of 'deco *  (('deco, 'a, 'b) u, 'a, 'b) G.t
+
+  let decoration (F (d, _)) = d
+  let fix a d = F (d, a)
+  let wrapAcc f (F (deco, x)) acc =
+    let acc, x = f x acc in acc, F (deco, x)
+
+  module SurfaceF = struct
+    let fold (type acc) f g h i x acc =
+      let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
+      Fold.foldmap f g h i x acc
+
+    let map f g h i x =
+      let module Map = F.Make(Applicatives.Map) in
+      Map.foldmap f g h i x
+
+    let foldmap (type acc) f g h i x acc =
+      let module FoldMap = Applicatives.FoldMap(struct type t = acc end) in
+      let module M = F.Make(FoldMap) in
+      M.foldmap f g h i x acc
+  end
+  module SurfaceG = MakeSurface3(G)
+
+  module Deep = struct
+    let rec mapfg_u f g (G (d, x)) = G (d, SurfaceG.map (mapfg_u f g) f g x)
+    let rec mapfg f g (F (d, x)) = F (d, SurfaceF.map (mapfg f g) (mapfg_u f g) f g x)
+    let rec reduce_u f (G (_, x)) = f (SurfaceG.map (reduce_u f) id id x)
+    let rec reduce f (F (_, x)) = f (SurfaceF.map (reduce f) id id id x)
+    let rec map f (F (d, x)) = F( d, f (SurfaceF.map (map f) id id id x))
+  end
+
+  module Traverse = struct
+    let rec foldmap_u f g h (G (d, x)) acc =
+      let acc, x = f (SurfaceG.foldmap (foldmap_u f g h) g h) acc x in
+      acc, G (d, x)
+    let rec foldmap f g h i (F (d, x)) acc =
+      let acc, x = f (SurfaceF.foldmap (foldmap f g h i) (foldmap_u g h i) h i) acc x in
+      acc, F (d, x)
+  end
+
+  let ppu ppb ppc = Deep.reduce_u (fun x f -> G.pp (fun f g -> g f) ppb ppc f x)
+  let ppu ppb ppc f p = ppu ppb ppc p f
+
+  let pp ppb ppc = Deep.reduce (fun x f -> F.pp (fun f g -> g f) (ppu ppb ppc) ppb ppc f x)
+  let pp ppb ppc f p = pp ppb ppc p f
+
 end
