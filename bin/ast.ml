@@ -2,18 +2,18 @@ open Lib
 
 module Ty = struct
   type ('a, 'b, 'c) tofix =
-    Integer
-  | Char
+    Integer | Char | Bool
   | Tuple of 'a list
   | Sum of ('b * 'a) list
   | Record of  ('b * 'a) list
   | Var of 'c
+  | Arrow of 'a * 'a
 
-  module Fixed =
-    Fix3(struct
+  module Base = struct
         type ('a, 'b, 'c) t = ('a, 'b, 'c) tofix
         let pp ppa ppb ppc f = function
           | Integer -> Format.fprintf f "int"
+          | Bool -> Format.fprintf f "bool"
           | Char -> Format.fprintf f "char"
           | Var x -> ppc f x
           | Tuple li -> Pp.list (fun f () -> Format.fprintf f " * ") ppa f li
@@ -21,25 +21,48 @@ module Ty = struct
           | Record li ->
              Format.fprintf f "{ @[%a@]}"
              (Pp.list (fun f () -> Format.fprintf f "@\n; ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
+          | Arrow (a, b) -> Format.fprintf f "%a -> %a" ppa a ppa b
 
         module Make(F:Applicative) = struct
           open F
           include ListApp(F)
           let foldmap f g h = function
             | Integer -> ret Integer
+            | Bool -> ret Bool
             | Char -> ret Char
             | Tuple li -> ret (fun x -> Tuple x) <*> fold_left_map f li
             | Sum li -> ret (fun x -> Sum x) <*> fold_left_map_couple g f li
             | Record li -> ret (fun x -> Record x) <*> fold_left_map_couple g f li
             | Var x -> ret (fun x -> Var x) <*> h x
+            | Arrow (a, b) -> ret (fun a b -> Arrow (a, b)) <*> f a <*> f b
         end
-      end)
+        let align a b = match a, b with
+            | Integer, Integer -> Some (Integer)
+            | Char, Char -> Some (Char)
+            | Bool, Bool -> Some (Char)
+            | Tuple lia, Tuple lib -> Option.map (fun x -> Tuple x) (zip_opt lia lib)
+            | Sum lia, Sum lib -> Option.map (fun x -> Sum x) (zip_opt lia lib)
+            | Record lia, Record lib -> Option.map (fun x -> Record x) (zip_opt lia lib)
+            | Var a, Var b -> Some (Var (a, b))
+            | Arrow (a, b), Arrow (c, d) -> Some (Arrow ((a, c), (b, d)))
+            | _ -> None
+  end
+  module Fixed = Fix3(Base)
+
+  let chars = [| "α"; "β"; "γ"; "δ"; "ε"; "θ"; "φ"; "ψ"; "ω"; "Ω" |]
+  let lenchars = Array.length chars
+  let string_of_v i =
+    let ci = i mod lenchars in
+    let ni = i / lenchars in
+    let str = chars.(ci) in
+    if ni = 0 then "'" ^ str
+    else "'" ^ str ^ (string_of_int ni)
 end
 
 module Expr = struct
 
   module Pattern = struct
-    type ('a, 'b, 'c) t =
+    type ('a, 'b, 'c) t = (* TODO ajouter des constantes dedans *)
       | Var of 'c
       | Tuple of 'a list
       | Construct of 'b * 'a (* TODO AS...*)
@@ -58,11 +81,12 @@ module Expr = struct
     end
   end
 
-  type binop = | Add | Mul | Div
+  type binop = | Add | Sub | Mul | Div
                | And | Or
 
   let ppop f = function
     | Add -> Format.fprintf f "+"
+    | Sub -> Format.fprintf f "-"
     | Mul -> Format.fprintf f "*"
     | Div -> Format.fprintf f "/"
     | And -> Format.fprintf f "and"
@@ -131,3 +155,16 @@ module Expr = struct
   end
   module Fixed = FixMut(Fixable)(Pattern)
 end
+
+
+module type Bindings = sig
+  include Map.OrderedType
+  val pp : Format.formatter -> t -> unit
+  val equal : t -> t -> bool
+end
+module type Fields = sig
+  include Map.OrderedType
+  val pp : Format.formatter -> t -> unit
+  val equal : t -> t -> bool
+end
+

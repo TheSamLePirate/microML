@@ -1,6 +1,16 @@
 let id x = x
+let idacc x acc = acc, x
 
 module StringMap = Map.Make(String)
+
+let zip_opt xs ys =
+  let rec aux acc xs ys =
+    match xs, ys with
+    | [], [] -> Some (List.rev acc)
+    | x::xs, y::ys -> aux ((x,y)::acc) xs ys
+    | _ -> None
+  in
+  aux [] xs ys
 
 module Pp = struct
   let int f i = Format.fprintf f "%d" i
@@ -68,6 +78,12 @@ module type Fixable3 = sig
     val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('a, 'b, 'c) t -> ('ra, 'rb, 'rc) t F.t
   end
 end
+
+module type Alignable3 = sig
+  type ('a, 'b, 'c) t
+  val align : ('a1,'b1,'c1) t -> ('a2,'b2,'c2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) ) t option
+end
+
 module type Fixable4 = sig
   type ('a, 'b, 'c, 'd) t
   val pp : (Format.formatter -> 'a -> unit) ->
@@ -100,10 +116,11 @@ module Fix3 (F : Fixable3) = struct
 
   let decoration (F (d, _)) = d
   let fix a d = F (d, a)
+  let unfix (F (_, a)) = a
   let wrapAcc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
-  module MakeApp (A:Applicative) = struct (* C'est un traversable sur les deux autres variables, utilisable quand un objet de l'AST est inclu dans un autre AST (exemple : pattern matching dans expression) *)
+  module MakeApp (A:Applicative) = struct (* C'est un traversable sur les deux autres variables, utilisable quand un objet de l'AST est inclu dans un autre AST (exemple : pattern matching dans expression aurait pu être implémenté comme ça) *)
     open A
     module S = F.Make(A)
     let rec foldmap f g (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g) f g x
@@ -130,13 +147,17 @@ module Fix3 (F : Fixable3) = struct
   let pp ppb ppc f p = pp ppb ppc p f
 end
 
+(* Quand un type récursif inclue un autre type récursif et qu'ils partagent deux variables de polymorphisme *)
 module FixMut  (F : Fixable4) (G : Fixable3) = struct
 
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, ('deco, 'a, 'b) u, 'a, 'b) F.t
   and ('deco, 'a, 'b) u = G of 'deco *  (('deco, 'a, 'b) u, 'a, 'b) G.t
 
+  let decoration_u (G (d, _)) = d
   let decoration (F (d, _)) = d
   let fix a d = F (d, a)
+  let unfix_u (G (_, a)) = a
+  let unfix (F (_, a)) = a
   let wrapAcc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
@@ -160,8 +181,27 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
     let rec mapfg_u f g (G (d, x)) = G (d, SurfaceG.map (mapfg_u f g) f g x)
     let rec mapfg f g (F (d, x)) = F (d, SurfaceF.map (mapfg f g) (mapfg_u f g) f g x)
     let rec reduce_u f (G (_, x)) = f (SurfaceG.map (reduce_u f) id id x)
-    let rec reduce f (F (_, x)) = f (SurfaceF.map (reduce f) id id id x)
+    let rec reduce f g (F (_, x)) = f (SurfaceF.map (reduce f g) (reduce_u g) id id x)
     let rec map f (F (d, x)) = F( d, f (SurfaceF.map (map f) id id id x))
+
+    (* map des décorations *)
+    let rec decorate_u f (G (d, x)) =
+      let x = SurfaceG.map (decorate_u f) id id x in
+      G (f d x, x)
+    let rec decorate f g (F (d, x)) =
+      let x = SurfaceF.map (decorate f g) (decorate_u g) id id x in
+      F (f d x, x)
+
+    (* foldmap des décorations *)
+    let rec decorate_foldmap_u f (G (d, x)) acc =
+      let acc, x = SurfaceG.foldmap (decorate_foldmap_u f) idacc idacc x acc in
+      let acc, d = f d x acc in
+      acc, G (d, x)
+    let rec decorate_foldmap f g (F (d, x)) acc =
+      let acc, x = SurfaceF.foldmap (decorate_foldmap f g) (decorate_foldmap_u g) idacc idacc x acc in
+      let acc, d = f d x acc in
+      acc, F (d, x)
+
   end
 
   module Traverse = struct
@@ -176,7 +216,9 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
   let ppu ppb ppc = Deep.reduce_u (fun x f -> G.pp (fun f g -> g f) ppb ppc f x)
   let ppu ppb ppc f p = ppu ppb ppc p f
 
-  let pp ppb ppc = Deep.reduce (fun x f -> F.pp (fun f g -> g f) (ppu ppb ppc) ppb ppc f x)
+  let pp ppb ppc = Deep.reduce (fun x f -> F.pp (fun f g -> g f) (fun f x -> x f) ppb ppc f x)
+                 (fun p f -> G.pp (fun f x -> x f) ppb ppc f p)
+
   let pp ppb ppc f p = pp ppb ppc p f
 
 end

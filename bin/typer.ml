@@ -1,14 +1,8 @@
 open Ast
 
-module type Bindings = sig
-  include Map.OrderedType
-end
-module type Fields = sig
-  include Map.OrderedType
-end
 let tf x = Ty.Fixed.fix x ()
 
-module Typer(B:Bindings)(F:Fields) = struct
+module Make(B:Bindings)(F:Fields) = struct
   module BMap = Map.Make(B)
 
   open Expr

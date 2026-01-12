@@ -1,0 +1,85 @@
+open Ast
+
+module Make(B:Bindings)(F:Fields) = struct
+
+  module BindingsMap = Map.Make(B)
+  module FieldsMap = Map.Make(F)
+
+  type mlv =
+    | Integer of int
+    | Bool of bool
+    | Char of char
+    | Tuple of mlv list
+    | Construct of F.t * mlv
+    | Record of mlv FieldsMap.t
+    | Lambda of (mlv -> mlv)
+  and env = mlv BindingsMap.t
+
+  let rec pp f = function
+  | Integer i -> Format.fprintf f "%d" i
+  | Bool b -> Format.fprintf f "%b" b
+  | Char c -> Format.fprintf f "%C" c
+  | Tuple li -> Format.fprintf f "(%a)" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") pp ) li
+  | Construct (a, b) -> Format.fprintf f "%a %a" F.pp a pp b
+  | Record li -> Format.fprintf f "{%a}" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (FieldsMap.to_list li)
+| Lambda _ -> Format.fprintf f "<fun>"
+
+  let integer = function | Integer i -> i | _ -> failwith "must be integer"
+  let record = function | Record i -> i | _ -> failwith "must be record"
+  let bool = function | Bool i -> i | _ -> failwith "must be bool"
+  let lambda = function | Lambda i -> i | _ -> failwith "must be lambda"
+  let tuple = function | Tuple t -> t | _ -> failwith "must be a tuple"
+
+  let empty_env = BindingsMap.empty
+  module E = Expr.Fixable
+
+  let mapp = function
+      | Expr.Pattern.Var v -> fun env e -> Some (BindingsMap.add v e env)
+      | Expr.Pattern.Tuple li -> fun env e ->
+                            List.fold_left (fun opt_env (pat, e) ->
+                                Option.bind opt_env (fun env -> pat env e))
+                              (Some env) (List.combine li (tuple e))
+      | Expr.Pattern.Construct (field, p) ->
+         fun env e ->
+         match e with
+         | Construct (field2, e) -> if F.equal field field2 then p env e else None
+         | _ -> assert false
+
+  let apply_patterns (a:mlv) (env:env) li : mlv =
+    match List.fold_left (fun optenv (pat, e) -> match optenv with
+                                            | None -> Option.map e (pat env a)
+                                            | Some _ -> optenv) None li with
+    | None -> failwith "bad pattern"
+    | Some s -> s
+
+  let mape = function
+    | E.Integer i -> fun _ -> Integer i
+    | E.Bool b -> fun _ -> Bool b
+    | E.Char c -> fun _ -> Char c
+    | E.Tuple li -> fun env -> Tuple (List.map (fun e -> e env) li)
+    | E.Construct (b, a) -> fun env -> Construct (b, a env)
+    | E.PatternMatch (a, li) ->
+       fun env -> apply_patterns (a env) env li
+    | E.Record li -> fun env -> Record (List.fold_left (fun map (field, a) -> FieldsMap.add field (a env) map) FieldsMap.empty li)
+    | E.AccessRecord (a, f) -> fun env -> FieldsMap.find f (record (a env))
+    | E.Var c -> BindingsMap.find c
+    | E.BinOp (a, Expr.Add, b) -> fun env -> Integer (integer (a env) + integer (b env))
+    | E.BinOp (a, Expr.Sub, b) -> fun env -> Integer (integer (a env) - integer (b env))
+    | E.BinOp (a, Expr.Mul, b) -> fun env -> Integer (integer (a env) * integer (b env))
+    | E.BinOp (a, Expr.Div, b) -> fun env -> Integer (integer (a env) / integer (b env))
+    | E.BinOp (a, Expr.And, b) -> fun env -> Bool (bool (a env) && bool (b env))
+    | E.BinOp (a, Expr.Or, b) -> fun env -> Bool (bool (a env) || bool (b env))
+    | E.UnOp (Expr.Neg, a) -> fun env -> Integer (- integer (a env))
+    | E.UnOp (Expr.Not, a) -> fun env -> Bool (not (bool (a env)))
+    | E.LetIn (c, a, b) -> fun env -> b (BindingsMap.add c (a env) env)
+    | E.Lambda (c, a) -> fun env -> Lambda ( fun b -> a (BindingsMap.add c b env))
+    | E.Apply (a, b) -> fun env -> (lambda (a env)) (b env)
+    | E.LetRecIn (c, a, b) -> fun env ->
+                              let env' = ref env in
+                              let evalla b = lambda (a !env') b in
+                              let () = env' := BindingsMap.add c (Lambda evalla) env
+                              in evalla (b env)
+
+let compile e = Expr.Fixed.Deep.reduce mape mapp e
+
+end
