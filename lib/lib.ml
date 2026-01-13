@@ -210,7 +210,9 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
       let acc, x = f (foldmap_u f g h) (SurfaceG.foldmap (foldmap_u f g h) g h) acc x in
       acc, G (d, x)
     let rec foldmap f g h i (F (d, x)) acc =
-      let acc, x = f (foldmap f g h i) (SurfaceF.foldmap (foldmap f g h i) (foldmap_u g h i) h i) acc x in
+      let fin = foldmap f g h i in
+      let gin = foldmap_u g h i in
+      let acc, x = f fin gin (SurfaceF.foldmap fin gin h i) acc x in
       acc, F (d, x)
   end
 

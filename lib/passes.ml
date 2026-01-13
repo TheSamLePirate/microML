@@ -6,7 +6,7 @@ let bindings e =
   let stringmap_add (stringmap, indice) binding = indice, (StringMap.add binding indice stringmap, indice + 1) in
   let open Expr.Fixed in
   let open Expr.Fixable in
-  let _, e = Traverse.foldmap (fun fin tra acc e ->
+  let _, e = Traverse.foldmap (fun fin gin tra acc e ->
      match e with
      | Lambda (binding, in_) ->
         let ibinding, acc' = stringmap_add acc binding in
@@ -19,16 +19,29 @@ let bindings e =
         acc, LetIn (ibinding, def, in_)
      | LetRecIn (binding, def, in_) ->
         let ibinding, acc' = stringmap_add acc binding in
-        let _, def = fin def acc in
+        let _, def = fin def acc' in
         let _, in_ = fin in_ acc' in
         acc, LetRecIn (ibinding, def, in_)
+     | PatternMatch (a, li) ->
+        let _, a = fin a acc in
+        let li = List.map (fun (pattern, expr) ->
+                        let acc, pattern = gin pattern acc in
+                        let _, expr = fin expr acc in
+                        pattern, expr
+                      ) li in
+        acc, PatternMatch (a, li)
      | x ->
         tra x acc
                )
-               (fun _fin tra acc p -> tra p acc) (* TODO *)
+               (fun _fin tra acc p ->
+                 match p with
+                 | Expr.Pattern.Var binding ->
+                    let ibinding, acc' = stringmap_add acc binding in
+                    acc', Expr.Pattern.Var ibinding
+                 | _ ->  tra p acc)
                (fun x acc -> acc, x)
-               (fun x ((map, _) as acc) ->
-                 acc, StringMap.find x map)
+               (fun binding ((map, _) as acc) -> (* TODO gérer l'erreur *)
+                 acc, StringMap.find binding map)
                e
                (StringMap.empty, 0)
   in e
