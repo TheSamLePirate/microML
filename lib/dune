@@ -1,0 +1,10 @@
+(library
+ (name miniml)
+  (flags (:standard -g))
+ (libraries menhirLib))
+
+(menhir
+ (modules parser)
+ (flags --explain))
+
+(ocamllex lexer)
