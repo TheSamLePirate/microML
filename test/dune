@@ -4,8 +4,9 @@
   (:t01 t01.ml) (:t01e t01.expected)
   (:t02 t02.ml) (:t02e t02.expected)
   (:t03 t03.ml) (:t03e t03.expected)
+  (:t04 t04.ml) (:t04e t04.expected)
   )
- (targets t01.out t02.out t03.out)
+ (targets t01.out t02.out t03.out t04.out)
  (action
   (progn
    (with-stdout-to t01.out
@@ -19,6 +20,10 @@
    (with-stdout-to t03.out
      (run %{exe:run.exe} %{t03}))
    (diff t03.out %{t03e})
+
+   (with-stdout-to t04.out
+     (run %{exe:run.exe} %{t04}))
+   (diff t04.out %{t04e})
 
    )))
 

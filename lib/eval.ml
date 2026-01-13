@@ -13,6 +13,7 @@ module Make(B:Bindings)(F:Fields) = struct
     | Construct of F.t * mlv
     | Record of mlv FieldsMap.t
     | Lambda of (mlv -> mlv)
+    | Cell of mlv option ref
   and env = mlv BindingsMap.t
 
   let rec eq a b = match a, b with
@@ -35,13 +36,20 @@ module Make(B:Bindings)(F:Fields) = struct
   | Tuple li -> Format.fprintf f "(%a)" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") pp ) li
   | Construct (a, b) -> Format.fprintf f "%a %a" F.pp a pp b
   | Record li -> Format.fprintf f "{%a}" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (FieldsMap.to_list li)
-| Lambda _ -> Format.fprintf f "<fun>"
+  | Lambda _ -> Format.fprintf f "<fun>"
+  | Cell r -> match !r with
+              | Some r -> Format.fprintf f "Cell(%a)" pp r
+              | None -> Format.fprintf f "Cell(None)"
 
-  let integer = function | Integer i -> i | _ -> failwith "must be integer"
-  let record = function | Record i -> i | _ -> failwith "must be record"
-  let bool = function | Bool i -> i | _ -> failwith "must be bool"
-  let lambda = function | Lambda i -> i | _ -> failwith "must be lambda"
-  let tuple = function | Tuple t -> t | _ -> failwith "must be a tuple"
+let rec uncell f = function
+  | Cell r -> uncell f (Option.get !r)
+  | x -> f x
+
+  let integer = uncell (function | Integer i -> i | _ -> failwith "must be integer")
+  let record = uncell (function | Record i -> i | _ -> failwith "must be record")
+  let bool = uncell (function | Bool i -> i | _ -> failwith "must be bool")
+  let lambda = uncell (function | Lambda i -> i | _ -> failwith "must be lambda")
+  let tuple = uncell (function | Tuple t -> t | _ -> failwith "must be a tuple")
 
   let empty_env = BindingsMap.empty
   module E = Expr.Fixable
@@ -75,7 +83,9 @@ module Make(B:Bindings)(F:Fields) = struct
        fun env -> apply_patterns (a env) env li
     | E.Record li -> fun env -> Record (List.fold_left (fun map (field, a) -> FieldsMap.add field (a env) map) FieldsMap.empty li)
     | E.AccessRecord (a, f) -> fun env -> FieldsMap.find f (record (a env))
-    | E.Var c -> BindingsMap.find c
+    | E.Var c -> (fun env ->
+      Format.printf "On cherche %a dans l'env@\n" B.pp c;
+      BindingsMap.find c env)
     | E.BinOp (a, Expr.Add, b) -> fun env -> Integer (integer (a env) + integer (b env))
     | E.BinOp (a, Expr.Sub, b) -> fun env -> Integer (integer (a env) - integer (b env))
     | E.BinOp (a, Expr.Mul, b) -> fun env -> Integer (integer (a env) * integer (b env))
@@ -91,13 +101,19 @@ module Make(B:Bindings)(F:Fields) = struct
     | E.UnOp (Expr.Neg, a) -> fun env -> Integer (- integer (a env))
     | E.UnOp (Expr.Not, a) -> fun env -> Bool (not (bool (a env)))
     | E.LetIn (c, a, b) -> fun env -> b (BindingsMap.add c (a env) env)
-    | E.Lambda (c, a) -> fun env -> Lambda ( fun b -> a (BindingsMap.add c b env))
+    | E.Lambda (c, a) -> fun env -> Lambda ( fun b ->
+                                             Format.printf "Ajout de %a dans l'env (lambda appliquée)@\n" B.pp c;
+                                             a (BindingsMap.add c b env))
     | E.Apply (a, b) -> fun env -> (lambda (a env)) (b env)
     | E.LetRecIn (c, a, b) -> fun env ->
-                              let env' = ref env in
-                              let evalla b = lambda (a !env') b in
-                              let () = env' := BindingsMap.add c (Lambda evalla) env
-                              in evalla (b env)
+                              let cell = ref None in
+                              let env' = BindingsMap.add c (Cell cell) env in
+                              let v = a env' in
+                              (match v with
+                               | Lambda _ -> cell := Some v
+                               | _ -> failwith "let rec: RHS must be a function");
+                              b env'
+
 
 let compile e = Expr.Fixed.Deep.reduce mape mapp e
 
