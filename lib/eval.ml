@@ -15,6 +15,19 @@ module Make(B:Bindings)(F:Fields) = struct
     | Lambda of (mlv -> mlv)
   and env = mlv BindingsMap.t
 
+  let rec eq a b = match a, b with
+    | Integer a, Integer b -> a == b
+    | Bool a, Bool b -> a == b
+    | Char a, Char b -> a == b
+    | Tuple l1, Tuple l2 -> Option.map (fun li -> List.fold_left (fun acc (a, b) -> acc && eq a b) true li) (Lib.zip_opt l1 l2) |> Option.value ~default:false
+    | Construct (f1, e1), Construct (f2, e2) -> F.equal f1 f2 && eq e1 e2
+    | Record l1, Record l2 ->
+       Option.map (fun li -> List.fold_left (fun acc ((n1, e1), (n2, e2)) ->
+                                 acc && F.equal n1 n2 && eq e1 e2
+                               ) true li)
+         (Lib.zip_opt (FieldsMap.to_list l1) (FieldsMap.to_list l2))
+       |> Option.value ~default:false
+    | _ -> false
   let rec pp f = function
   | Integer i -> Format.fprintf f "%d" i
   | Bool b -> Format.fprintf f "%b" b
@@ -67,8 +80,14 @@ module Make(B:Bindings)(F:Fields) = struct
     | E.BinOp (a, Expr.Sub, b) -> fun env -> Integer (integer (a env) - integer (b env))
     | E.BinOp (a, Expr.Mul, b) -> fun env -> Integer (integer (a env) * integer (b env))
     | E.BinOp (a, Expr.Div, b) -> fun env -> Integer (integer (a env) / integer (b env))
+    | E.BinOp (a, Expr.Gt, b) -> fun env -> Bool (integer (a env) > integer (b env))
+    | E.BinOp (a, Expr.Ge, b) -> fun env -> Bool (integer (a env) >= integer (b env))
+    | E.BinOp (a, Expr.Lt, b) -> fun env -> Bool (integer (a env) < integer (b env))
+    | E.BinOp (a, Expr.Le, b) -> fun env -> Bool (integer (a env) <= integer (b env))
     | E.BinOp (a, Expr.And, b) -> fun env -> Bool (bool (a env) && bool (b env))
     | E.BinOp (a, Expr.Or, b) -> fun env -> Bool (bool (a env) || bool (b env))
+    | E.BinOp (a, Expr.Eq, b) -> fun env -> Bool (eq (a env) (b env))
+    | E.BinOp (a, Expr.Neq, b) -> fun env -> Bool (not (eq (a env) (b env)))
     | E.UnOp (Expr.Neg, a) -> fun env -> Integer (- integer (a env))
     | E.UnOp (Expr.Not, a) -> fun env -> Bool (not (bool (a env)))
     | E.LetIn (c, a, b) -> fun env -> b (BindingsMap.add c (a env) env)

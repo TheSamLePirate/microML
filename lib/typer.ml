@@ -93,14 +93,15 @@ module Make(B:Bindings)(F:Fields) = struct
        let ta = Fixed.decoration a in
        env, Ty.Arrow (tc, ta)|> tf, Fixable.Lambda (c, a)
     | Fixable.BinOp (a, op, b) ->
-       let t = match op with
-         | Add | Sub | Mul | Div -> Ty.Integer
-         | And | Or -> Ty.Bool in
+       let env, t = match op with
+         | Add | Sub | Mul | Div | Lt | Le | Gt | Ge -> env, tf Ty.Integer
+         | And | Or -> env, tf Ty.Bool
+         | Eq | Neq -> fresh' env
+       in
        let env, a = tra env a in
        let env, b = tra env b in
        let ta = Fixed.decoration a in
        let tb = Fixed.decoration b in
-       let t = tf t in
        let env = unify env ta t in
        let env = unify env tb t in
        env, t, Fixable.BinOp (a, op, b)

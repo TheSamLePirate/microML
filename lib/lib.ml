@@ -117,7 +117,7 @@ module Fix3 (F : Fixable3) = struct
   let decoration (F (d, _)) = d
   let fix a d = F (d, a)
   let unfix (F (_, a)) = a
-  let wrapAcc f (F (deco, x)) acc =
+  let wrap_acc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
   module MakeApp (A:Applicative) = struct (* C'est un traversable sur les deux autres variables, utilisable quand un objet de l'AST est inclu dans un autre AST (exemple : pattern matching dans expression aurait pu être implémenté comme ça) *)
@@ -138,7 +138,7 @@ module Fix3 (F : Fixable3) = struct
 
   module Traverse = struct
     let rec foldmap f g h (F (d, x)) acc =
-      let acc, x = f (Surface.foldmap (foldmap f g h) g h) acc x in
+      let acc, x = f (foldmap f g h) (Surface.foldmap (foldmap f g h) g h) acc x in
       acc, F (d, x)
   end
 
@@ -155,10 +155,11 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
 
   let decoration_u (G (d, _)) = d
   let decoration (F (d, _)) = d
+  let fix_u a d = G (d, a)
   let fix a d = F (d, a)
   let unfix_u (G (_, a)) = a
   let unfix (F (_, a)) = a
-  let wrapAcc f (F (deco, x)) acc =
+  let wrap_acc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
   module SurfaceF = struct
@@ -206,10 +207,10 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
 
   module Traverse = struct
     let rec foldmap_u f g h (G (d, x)) acc =
-      let acc, x = f (SurfaceG.foldmap (foldmap_u f g h) g h) acc x in
+      let acc, x = f (foldmap_u f g h) (SurfaceG.foldmap (foldmap_u f g h) g h) acc x in
       acc, G (d, x)
     let rec foldmap f g h i (F (d, x)) acc =
-      let acc, x = f (SurfaceF.foldmap (foldmap f g h i) (foldmap_u g h i) h i) acc x in
+      let acc, x = f (foldmap f g h i) (SurfaceF.foldmap (foldmap f g h i) (foldmap_u g h i) h i) acc x in
       acc, F (d, x)
   end
 

@@ -1,0 +1,28 @@
+(rule
+ (alias runtest)
+ (deps
+  (:t01 t01.ml) (:t01e t01.expected)
+  (:t02 t02.ml) (:t02e t02.expected)
+  (:t03 t03.ml) (:t03e t03.expected)
+  )
+ (targets t01.out t02.out t03.out)
+ (action
+  (progn
+   (with-stdout-to t01.out
+     (run %{exe:run.exe} %{t01}))
+   (diff t01.out %{t01e})
+
+   (with-stdout-to t02.out
+     (run %{exe:run.exe} %{t02}))
+   (diff t02.out %{t02e})
+
+   (with-stdout-to t03.out
+     (run %{exe:run.exe} %{t03}))
+   (diff t03.out %{t03e})
+
+   )))
+
+(executable
+ (name run)
+ (flags (:standard -g))
+ (libraries miniml))

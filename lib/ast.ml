@@ -1,5 +1,15 @@
 open Lib
 
+module Loc = struct
+  type t = { startp : Lexing.position; endp : Lexing.position }
+  let pp f l =
+    let sp = l.startp and ep = l.endp in
+    Format.fprintf f "%d:%d-%d:%d"
+      sp.pos_lnum (sp.pos_cnum - sp.pos_bol)
+      ep.pos_lnum (ep.pos_cnum - ep.pos_bol)
+
+end
+
 module Ty = struct
   type ('a, 'b, 'c) tofix =
     Integer | Char | Bool
@@ -82,6 +92,8 @@ module Expr = struct
   end
 
   type binop = | Add | Sub | Mul | Div
+               | Eq
+               | Lt | Le | Gt | Ge | Neq
                | And | Or
 
   let ppop f = function
@@ -91,6 +103,12 @@ module Expr = struct
     | Div -> Format.fprintf f "/"
     | And -> Format.fprintf f "and"
     | Or -> Format.fprintf f "or"
+    | Eq -> Format.fprintf f "=="
+    | Neq -> Format.fprintf f "!="
+    | Lt -> Format.fprintf f "<"
+    | Gt -> Format.fprintf f ">"
+    | Ge -> Format.fprintf f ">="
+    | Le -> Format.fprintf f "<="
 
   type unop = Neg | Not
 

@@ -13,7 +13,6 @@ let kw = function
   | "true"  -> BOOL true
   | "false" -> BOOL false
   | _ -> raise Not_found
-}
 
 let char_of_escape = function
   | 'n' -> '\n'
@@ -32,7 +31,6 @@ let ident_char = ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']
 
 let lident = lident_start ident_char*
 let uident = uident_start ident_char*
-}
 
 rule token = parse
 | [' ' '\t' '\r' '\n'] { token lexbuf }
@@ -67,7 +65,7 @@ rule token = parse
 
 | digit+ as s { INT (int_of_string s) }
 
-| "'" (['\\'] ['n''r''t''\\''\'''0'] as esc) "'" {
+| "'" (['\\'] ['n''r''t''\\''\'''0']) "'" {
     let c = char_of_escape (Lexing.lexeme_char lexbuf 2) in
     CHAR c
   }

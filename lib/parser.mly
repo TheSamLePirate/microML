@@ -2,14 +2,13 @@
 (* Adapte ces opens à ton projet *)
 open Ast.Expr
 
-type loc = { startp : Lexing.position; endp : Lexing.position }
-let loc (sp, ep) = { startp = sp; endp = ep }
-
-(* --- Hypothèse FixMut --- *)
-(* Remplace FixMut.inj par ton constructeur (FixMut.fix / wrap / inj / etc.) *)
-let p loc x = assert false
-
+let loc (sp, ep) = { Ast.Loc.startp = sp; Ast.Loc.endp = ep }
+let p loc x = Fixed.fix_u x loc
 let e loc x = Fixed.fix x loc
+
+let mk_lambdas loc params body=
+  List.fold_right (fun x acc -> e loc (Fixable.Lambda (x, acc))) params body
+
 %}
 
 (* --- Tokens --- *)
@@ -21,7 +20,6 @@ let e loc x = Fixed.fix x loc
 %token <string> UIDENT   /* constructeurs */
 
 %token LET REC IN FUN MATCH WITH
-%token TRUE FALSE
 
 %token LPAREN RPAREN LBRACE RBRACE
 %token COMMA SEMI COLON
@@ -37,7 +35,7 @@ let e loc x = Fixed.fix x loc
 %token EOF
 
 (* --- AST concrete types --- *)
-%type < (loc, string, string) Ast.Expr.Fixed.t> main
+%type < (Ast.Loc.t, string, string) Ast.Expr.Fixed.t> main
 %start main
 
 (* --- Precedences --- *)
@@ -58,24 +56,20 @@ main:
 | expr EOF { $1 }
 
 (* -------- Patterns -------- *)
-
 pattern:
+| p = p_app { p }
+
+p_app:
+| c = UIDENT; a = p_atom
+    { p (loc ($startpos, $endpos)) (Pattern.Construct (c, a)) }
+| c = UIDENT
+    { p (loc ($startpos, $endpos)) (Pattern.Construct (c, p (loc ($startpos, $endpos)) (Pattern.Tuple []))) }  /* constructeur nullaire */
+| a = p_atom
+    { a }
+
+p_atom:
 | x = LIDENT
     { p (loc ($startpos, $endpos)) (Pattern.Var x) }
-| c = UIDENT; a = pattern_atom
-    { p (loc ($startpos, $endpos)) (Pattern.Construct (c, a)) }
-| pattern_tuple
-    { $1 }
-| pattern_atom
-    { $1 }
-
-pattern_atom:
-| LPAREN; p0 = pattern; RPAREN { p0 }
-| x = LIDENT { p (loc ($startpos, $endpos)) (Pattern.Var x) }
-| c = UIDENT { p (loc ($startpos, $endpos)) (Pattern.Construct (c, p (Pattern.Tuple []))) } /* optionnel: C comme C () */
-;
-
-pattern_tuple:
 | LPAREN; ps = separated_nonempty_list(COMMA, pattern); RPAREN
     {
       match ps with
@@ -86,10 +80,18 @@ pattern_tuple:
 (* -------- Expressions -------- *)
 
 expr:
-| LET; REC; x = LIDENT; EQ; e1 = expr; IN; e2 = expr
-    { e (loc ($startpos, $endpos)) (Fixable.LetRecIn (x, e1, e2)) }
-| LET; x = LIDENT; EQ; e1 = expr; IN; e2 = expr
+| LET; x=LIDENT; params=list(LIDENT); EQ; e1=expr; IN; e2=expr
+    { e (loc ($startpos, $endpos)) (Fixable.LetIn (x, mk_lambdas (loc ($startpos, $endpos)) params e1, e2)) }
+
+| LET; REC; f=LIDENT; params=nonempty_list(LIDENT); EQ; e1=expr; IN; e2=expr
+    { e (loc ($startpos, $endpos)) (Fixable.LetRecIn (f, mk_lambdas (loc ($startpos, $endpos)) params e1, e2)) }
+
+| LET; REC; f=LIDENT; EQ; e1=expr; IN; e2=expr
+    { e (loc ($startpos, $endpos)) (Fixable.LetRecIn (f, e1, e2)) }
+
+| LET; x=LIDENT; EQ; e1=expr; IN; e2=expr
     { e (loc ($startpos, $endpos)) (Fixable.LetIn (x, e1, e2)) }
+
 | FUN; x = LIDENT; ARROW; body = expr
     { e (loc ($startpos, $endpos)) (Fixable.Lambda (x, body)) }
 | MATCH; scrut = expr; WITH; cases = match_cases
@@ -170,6 +172,8 @@ e_atom:
     { e (loc ($startpos, $endpos)) (Fixable.Var x) }
 | ctor = UIDENT; arg = e_atom
     { e (loc ($startpos, $endpos)) (Fixable.Construct (ctor, arg)) }
+| ctor = UIDENT
+    { e (loc ($startpos, $endpos)) (Fixable.Construct (ctor, e (loc ($startpos, $endpos)) (Fixable.Tuple []))) } /* Nil */
 | tuple_expr
     { $1 }
 | record_expr
