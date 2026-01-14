@@ -19,7 +19,8 @@ module Pp = struct
   let list sep pp f li =
     let rec print f = function
       | [] -> ()
-      | hd::tl -> Format.fprintf f "%a%a%a" pp hd sep () print tl
+      | [hd] -> pp f hd
+      | hd::((_::_2) as tl) -> Format.fprintf f "%a%a%a" pp hd sep () print tl
     in print f li
 end
 
