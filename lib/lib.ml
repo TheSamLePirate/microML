@@ -22,6 +22,8 @@ module Pp = struct
       | [hd] -> pp f hd
       | hd::((_::_2) as tl) -> Format.fprintf f "%a%a%a" pp hd sep () print tl
     in print f li
+  let failwith fmt = Format.kasprintf failwith fmt
+
 end
 
 module type Applicative = sig

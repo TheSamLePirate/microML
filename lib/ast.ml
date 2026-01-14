@@ -133,6 +133,7 @@ module Expr = struct
       | LetRecIn of 'c * 'a * 'a
       | Lambda of 'c * 'a
       | Apply of 'a * 'a
+      | IfThenElse of 'a * 'a * 'a
     let pp ppa ppp ppb ppc f = function
       | Integer i -> Format.fprintf f "%d" i
       | Bool b -> Format.fprintf f "%b" b
@@ -151,6 +152,7 @@ module Expr = struct
       | LetRecIn (c, a, b) -> Format.fprintf f "let rec %a = %a@\nin@[ %a@]" ppc c ppa a ppa b
       | Lambda (c, a) ->Format.fprintf f "(fun %a -> %a)" ppc c ppa a
       | Apply (a, b) -> Format.fprintf f "(%a) (%a)" ppa a ppa b
+      | IfThenElse (a, b, c) -> Format.fprintf f "(if %a then %a else %a)" ppa a ppa b ppa c
 
     module Make(F:Applicative) = struct
       open F
@@ -169,6 +171,7 @@ module Expr = struct
         | LetRecIn (c, a, b) -> ret (fun c a b -> LetRecIn (c, a, b)) <*> h c <*> f a <*> f b
         | Lambda (c, a) -> ret (fun c a -> Lambda (c, a)) <*> h c <*> f a
         | Apply (a, b) -> ret (fun a b -> Apply (a, b)) <*> f a <*> f b
+        | IfThenElse (a, b, c) -> ret (fun a b c -> IfThenElse (a, b, c)) <*> f a <*> f b <*> f c
     end
   end
   module Fixed = FixMut(Fixable)(Pattern)

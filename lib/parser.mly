@@ -20,7 +20,7 @@ let mk_lambdas loc params body=
 %token <string> UIDENT   /* constructeurs */
 
 %token LET REC IN FUN MATCH WITH
-
+%token IF THEN ELSE
 %token LPAREN RPAREN LBRACE RBRACE
 %token COMMA SEMI COLON
 %token BAR ARROW
@@ -49,6 +49,8 @@ let mk_lambdas loc params body=
 %left STAR SLASH
 %right NOT
 %left APP
+%nonassoc THEN
+%nonassoc ELSE
 
 %%
 
@@ -96,6 +98,8 @@ expr:
     { e (loc ($startpos, $endpos)) (Fixable.Lambda (x, body)) }
 | MATCH; scrut = expr; WITH; cases = match_cases
     { e (loc ($startpos, $endpos)) (Fixable.PatternMatch (scrut, cases)) }
+| IF; c = expr; THEN; t = expr; ELSE; e0 = expr
+    { e (loc ($startpos, $endpos)) (Fixable.IfThenElse (c, t, e0)) }
 | e_binop
     { $1 }
 
@@ -141,17 +145,28 @@ e_mul:
 | a = e_mul; SLASH; b = e_app { e (loc ($startpos, $endpos)) (Fixable.BinOp (a, Div, b)) }
 | e_app { $1 }
 
+e_arg:
+| e_post { $1 }   /* pas e_unary ici */
+
 e_app:
 | f = e_app; x = e_post %prec APP
     { e (loc ($startpos, $endpos)) (Fixable.Apply (f, x)) }
-| e_post
-    { $1 }
+| a = e_unary
+    { a }
 
 e_post:
-| r = e_atom; DOT; lab = LIDENT
-    { e (loc ($startpos, $endpos)) (Fixable.AccessRecord (r, lab)) }
-| e_unary
-    { $1 }
+| base = e_atom; sels = list(selection)
+    {
+      List.fold_left
+        (fun acc sel ->
+          match sel with
+          | `Field lab ->
+              e (loc ($startpos, $endpos)) (Fixable.AccessRecord (acc, lab)))
+        base sels
+    }
+
+selection:
+| DOT; lab = LIDENT { `Field lab }
 
 e_unary:
 | NOT; a = e_unary
@@ -204,5 +219,5 @@ binop:
 | SLASH { Div }
 | ANDAND { And }
 | OROR   { Or }
-| LT { Lt } | LE { Le } | GT { Gt } | GE { Ge } | NEQ { Neq }
+| LT { Lt } | LE { Le } | GT { Gt } | GE { Ge } | NEQ { Neq } | EQ { Eq }
 ;

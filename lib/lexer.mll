@@ -12,6 +12,9 @@ let kw = function
   | "with"  -> WITH
   | "true"  -> BOOL true
   | "false" -> BOOL false
+  | "if"   -> IF
+  | "then" -> THEN
+  | "else" -> ELSE
   | _ -> raise Not_found
 
 let char_of_escape = function

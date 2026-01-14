@@ -1,4 +1,5 @@
 open Ast
+open Lib
 
 module Make(B:Bindings)(F:Fields) = struct
 
@@ -45,11 +46,11 @@ let rec uncell f = function
   | Cell r -> uncell f (Option.get !r)
   | x -> f x
 
-  let integer = uncell (function | Integer i -> i | _ -> failwith "must be integer")
-  let record = uncell (function | Record i -> i | _ -> failwith "must be record")
-  let bool = uncell (function | Bool i -> i | _ -> failwith "must be bool")
-  let lambda = uncell (function | Lambda i -> i | _ -> failwith "must be lambda")
-  let tuple = uncell (function | Tuple t -> t | _ -> failwith "must be a tuple")
+  let integer = uncell (function | Integer i -> i | x -> Pp.failwith "must be integer (%a)" pp x)
+  let record = uncell (function | Record i -> i | x -> Pp.failwith "must be record (%a)" pp x)
+  let bool = uncell (function | Bool i -> i | x -> Pp.failwith "must be bool (%a)" pp x)
+  let lambda = uncell (function | Lambda i -> i | x -> Pp.failwith "must be lambda (%a)" pp x)
+  let tuple = uncell (function | Tuple t -> t | x -> Pp.failwith "must be a tuple (%a)" pp x)
 
   let empty_env = BindingsMap.empty
   module E = Expr.Fixable
@@ -100,6 +101,7 @@ let rec uncell f = function
     | E.UnOp (Expr.Not, a) -> fun env -> Bool (not (bool (a env)))
     | E.LetIn (c, a, b) -> fun env -> b (BindingsMap.add c (a env) env)
     | E.Lambda (c, a) -> fun env -> Lambda ( fun b -> a (BindingsMap.add c b env))
+    | E.IfThenElse (a, b, c) -> fun env -> if bool(a env) then b env else c env
     | E.Apply (a, b) -> fun env -> (lambda (a env)) (b env)
     | E.LetRecIn (c, a, b) -> fun env ->
                               let cell = ref None in
