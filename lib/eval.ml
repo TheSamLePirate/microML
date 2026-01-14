@@ -83,9 +83,7 @@ let rec uncell f = function
        fun env -> apply_patterns (a env) env li
     | E.Record li -> fun env -> Record (List.fold_left (fun map (field, a) -> FieldsMap.add field (a env) map) FieldsMap.empty li)
     | E.AccessRecord (a, f) -> fun env -> FieldsMap.find f (record (a env))
-    | E.Var c -> (fun env ->
-      Format.printf "On cherche %a dans l'env@\n" B.pp c;
-      BindingsMap.find c env)
+    | E.Var c -> BindingsMap.find c
     | E.BinOp (a, Expr.Add, b) -> fun env -> Integer (integer (a env) + integer (b env))
     | E.BinOp (a, Expr.Sub, b) -> fun env -> Integer (integer (a env) - integer (b env))
     | E.BinOp (a, Expr.Mul, b) -> fun env -> Integer (integer (a env) * integer (b env))
@@ -101,9 +99,7 @@ let rec uncell f = function
     | E.UnOp (Expr.Neg, a) -> fun env -> Integer (- integer (a env))
     | E.UnOp (Expr.Not, a) -> fun env -> Bool (not (bool (a env)))
     | E.LetIn (c, a, b) -> fun env -> b (BindingsMap.add c (a env) env)
-    | E.Lambda (c, a) -> fun env -> Lambda ( fun b ->
-                                             Format.printf "Ajout de %a dans l'env (lambda appliquée)@\n" B.pp c;
-                                             a (BindingsMap.add c b env))
+    | E.Lambda (c, a) -> fun env -> Lambda ( fun b -> a (BindingsMap.add c b env))
     | E.Apply (a, b) -> fun env -> (lambda (a env)) (b env)
     | E.LetRecIn (c, a, b) -> fun env ->
                               let cell = ref None in
