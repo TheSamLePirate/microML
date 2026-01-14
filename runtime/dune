@@ -1,0 +1,5 @@
+(rule
+ (targets runtime.o)
+ (deps runtime.c runtime.h)
+ (action
+  (run clang -c runtime.c -o runtime.o)))
