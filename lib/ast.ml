@@ -61,12 +61,12 @@ module Ty = struct
 
   let chars = [| "α"; "β"; "γ"; "δ"; "ε"; "θ"; "φ"; "ψ"; "ω"; "Ω" |]
   let lenchars = Array.length chars
-  let string_of_v i =
+  let pp_tyvar f i =
     let ci = i mod lenchars in
     let ni = i / lenchars in
     let str = chars.(ci) in
-    if ni = 0 then "'" ^ str
-    else "'" ^ str ^ (string_of_int ni)
+    if ni = 0 then Format.fprintf f "'%s" str
+    else Format.fprintf f "'%s%d" str ni
 end
 
 module Expr = struct
@@ -177,7 +177,6 @@ module Expr = struct
   module Fixed = FixMut(Fixable)(Pattern)
 end
 
-
 module type Bindings = sig
   include Map.OrderedType
   val pp : Format.formatter -> t -> unit
@@ -189,3 +188,8 @@ module type Fields = sig
   val equal : t -> t -> bool
 end
 
+module type FreshableBindings = sig
+  include Bindings
+  val init : t
+  val next : t -> t
+end

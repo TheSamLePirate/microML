@@ -51,9 +51,11 @@ module StringBindings : Ast.Bindings with type t = string = struct
   include String
   let pp = Pp.string
 end
-module IntBindings : Ast.Bindings with type t = int = struct
+module IntBindings : Ast.FreshableBindings with type t = int = struct
   include Int
   let pp = Pp.int
+  let init = 0
+  let next n = n + 1
 end
 module StringFields : Ast.Fields with type t = string = struct
   include String
@@ -64,7 +66,7 @@ module IntFields : Ast.Fields with type t = int = struct
   let pp = Pp.int
 end
 
-module Ty = Typer.Make(StringBindings)(StringFields)
+module Ty = Typer.Make(StringBindings)(IntBindings)(StringFields)
 module EvalI = Eval.Make(IntBindings)(StringFields)
 
 let parse_file filename =

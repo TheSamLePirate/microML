@@ -209,14 +209,20 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
   end
 
   module Traverse = struct
-    let rec foldmap_u f g h (G (d, x)) acc =
-      let acc, x = f (foldmap_u f g h) (SurfaceG.foldmap (foldmap_u f g h) g h) acc x in
+    let rec decorate_foldmap_u f g h (G (d, x)) acc =
+      let acc, d, x = f (decorate_foldmap_u f g h) (SurfaceG.foldmap (decorate_foldmap_u f g h) g h) acc d x in
       acc, G (d, x)
-    let rec foldmap f g h i (F (d, x)) acc =
-      let fin = foldmap f g h i in
-      let gin = foldmap_u g h i in
-      let acc, x = f fin gin (SurfaceF.foldmap fin gin h i) acc x in
+    let rec decorate_foldmap f g h i (F (d, x)) acc =
+      let fin = decorate_foldmap f g h i in
+      let gin = decorate_foldmap_u g h i in
+      let acc, d, x = f fin gin (SurfaceF.foldmap fin gin h i) acc d x in
       acc, F (d, x)
+
+    let wrapu f fin tra acc d x = let a, b = f fin tra acc x in a, d, b
+    let wrap f fin gin tra acc d x = let a, b = f fin gin tra acc x in a, d, b
+    let foldmap_u f = decorate_foldmap_u (wrapu f)
+    let foldmap f g = decorate_foldmap (wrap f) (wrapu g)
+
   end
 
   let ppu ppb ppc = Deep.reduce_u (fun x f -> G.pp (fun f g -> g f) ppb ppc f x)

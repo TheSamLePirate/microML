@@ -1,29 +1,29 @@
 (rule
  (alias runtest)
  (deps
-  (:t01 t01.ml) (:t01e t01.expected)
-  (:t02 t02.ml) (:t02e t02.expected)
-  (:t03 t03.ml) (:t03e t03.expected)
-  (:t04 t04.ml) (:t04e t04.expected)
-  )
+ %{exe:run.exe}
+ (glob_files t*.ml)
+ (glob_files t*.expected))
  (targets t01.out t02.out t03.out t04.out)
  (action
   (progn
+
    (with-stdout-to t01.out
-     (run %{exe:run.exe} %{t01}))
-   (diff t01.out %{t01e})
+     (run %{exe:run.exe} %{dep:t01.ml}))
+   (diff t01.out %{dep:t01.expected})
 
    (with-stdout-to t02.out
-     (run %{exe:run.exe} %{t02}))
-   (diff t02.out %{t02e})
+     (run %{exe:run.exe} %{dep:t02.ml}))
+   (diff t02.out %{dep:t02.expected})
 
    (with-stdout-to t03.out
-     (run %{exe:run.exe} %{t03}))
-   (diff t03.out %{t03e})
+     (run %{exe:run.exe} %{dep:t03.ml}))
+   (diff t03.out %{dep:t03.expected})
 
    (with-stdout-to t04.out
-     (run %{exe:run.exe} %{t04}))
-   (diff t04.out %{t04e})
+     (run %{exe:run.exe} %{dep:t04.ml}))
+   (diff t04.out %{dep:t04.expected})
+
 
    )))
 
