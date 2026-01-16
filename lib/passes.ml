@@ -10,6 +10,12 @@ module IntBindings : Ast.FreshableBindings with type t = int = struct
   let init = 0
   let next n = n + 1
 end
+module IntTypesBindings : Ast.FreshableBindings with type t = int = struct
+  include Int
+  let pp = Ast.Ty.pp_tyvar
+  let init = 0
+  let next n = n + 1
+end
 module StringFields : Ast.Fields with type t = string = struct
   include String
   let pp = Pp.string
@@ -20,7 +26,7 @@ module IntFields : Ast.Fields with type t = int = struct
 end
 
 module Bindings = Bindings.Make(StringBindings)(IntBindings)
-module Ty = Typer.Make(StringBindings)(IntBindings)(StringFields)
+module Ty = Typer.Make(StringBindings)(IntTypesBindings)(StringFields)
 module EvalI = Eval.Make(IntBindings)(StringFields)
 
 let parse_file filename =

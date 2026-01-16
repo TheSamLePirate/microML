@@ -5,7 +5,8 @@ module Make(B:Bindings)(BTarget:Ast.FreshableBindings) = struct
 
 (* bindings de string vers int *)
   let process e =
-  let stringmap_add (stringmap, indice) binding = indice, (BMap.add binding indice stringmap, BTarget.next indice) in
+  let stringmap_add (stringmap, indice) binding =
+    indice, (BMap.add binding indice stringmap, BTarget.next indice) in
   let open Expr.Fixed in
   let open Expr.Fixable in
   let _, e = Traverse.foldmap (fun fin gin tra acc e ->
@@ -42,7 +43,9 @@ module Make(B:Bindings)(BTarget:Ast.FreshableBindings) = struct
                     acc', Expr.Pattern.Var ibinding
                  | _ ->  tra p acc)
                (fun x acc -> acc, x)
-               (fun binding ((map, _) as acc) -> (* TODO gérer l'erreur *)
+               (fun binding ((map, _) as acc) ->
+(*                 Format.printf "search %a in %a@\n" B.pp binding (Lib.Pp.assoc B.pp BTarget.pp) (BMap.to_list map); *)
+                 (* TODO gérer l'erreur *)
                  acc, BMap.find binding map)
                e
                (BMap.empty, BTarget.init)

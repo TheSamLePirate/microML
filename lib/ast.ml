@@ -11,32 +11,34 @@ module Loc = struct
 end
 
 module Ty = struct
-  type ('a, 'b, 'c) tofix =
+  type ('a, 'b, 'c, 'd) tofix =
     Integer | Char | Bool
   | Tuple of 'a list
   | Sum of ('b * 'a) list
   | Record of  ('b * 'a) list
   | Var of 'c
   | Arrow of 'a * 'a
+  | Named of 'a list * 'd
 
   module Base = struct
-        type ('a, 'b, 'c) t = ('a, 'b, 'c) tofix
-        let pp ppa ppb ppc f = function
+        type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) tofix
+        let pp ppa ppb ppc ppd f = function
           | Integer -> Format.fprintf f "int"
           | Bool -> Format.fprintf f "bool"
           | Char -> Format.fprintf f "char"
           | Var x -> ppc f x
+          | Tuple [] -> Format.fprintf f "unit"
           | Tuple li -> Pp.list (fun f () -> Format.fprintf f " * ") ppa f li
-          | Sum li -> Pp.list (fun f () -> Format.fprintf f "@\n| ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a) f li
+          | Sum li -> Format.fprintf f "@[<v>%a@]" (Pp.list (fun f () -> Format.fprintf f "@\n| ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
           | Record li ->
              Format.fprintf f "{ @[%a@]}"
              (Pp.list (fun f () -> Format.fprintf f "@\n; ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
-          | Arrow (a, b) -> Format.fprintf f "%a -> %a" ppa a ppa b
-
+          | Arrow (a, b) -> Format.fprintf f "(%a -> %a)" ppa a ppa b
+          | Named (li, d) -> Format.fprintf f "(%a) %a" (Pp.list (fun f () -> Format.fprintf f ",@ ") ppa) li ppd d
         module Make(F:Applicative) = struct
           open F
           include ListApp(F)
-          let foldmap f g h = function
+          let foldmap f g h i = function
             | Integer -> ret Integer
             | Bool -> ret Bool
             | Char -> ret Char
@@ -45,6 +47,7 @@ module Ty = struct
             | Record li -> ret (fun x -> Record x) <*> fold_left_map_couple g f li
             | Var x -> ret (fun x -> Var x) <*> h x
             | Arrow (a, b) -> ret (fun a b -> Arrow (a, b)) <*> f a <*> f b
+            | Named (li, d) -> ret (fun li d -> Named (li, d)) <*> fold_left_map f li <*> i d
         end
         let align a b = match a, b with
             | Integer, Integer -> Some (Integer)
@@ -55,9 +58,12 @@ module Ty = struct
             | Record lia, Record lib -> Option.map (fun x -> Record x) (zip_opt lia lib)
             | Var a, Var b -> Some (Var (a, b))
             | Arrow (a, b), Arrow (c, d) -> Some (Arrow ((a, c), (b, d)))
+            | Named (li1, d1), Named( li2, d2) ->
+               if d1 == d2 then Option.map (fun li -> Named(li, d1)) (zip_opt li1 li2)
+               else None
             | _ -> None
   end
-  module Fixed = Fix3(Base)
+  module Fixed = Fix4(Base)
 
   let chars = [| "α"; "β"; "γ"; "δ"; "ε"; "θ"; "φ"; "ψ"; "ω"; "Ω" |]
   let lenchars = Array.length chars
@@ -175,6 +181,13 @@ module Expr = struct
     end
   end
   module Fixed = FixMut(Fixable)(Pattern)
+end
+
+module TopLvl = struct
+  type ('deco, 'tyvar, 'fields, 'binding) decl =
+    | TypeDecl of 'tyvar list * 'binding * ('deco, 'fields, 'tyvar, 'binding) Ty.Fixed.t
+    | Let of 'binding * ('deco, 'fields, 'binding) Expr.Fixed.t
+    | LetRec of 'binding * ('deco, 'fields, 'binding) Expr.Fixed.t
 end
 
 module type Bindings = sig

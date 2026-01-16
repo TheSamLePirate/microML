@@ -23,7 +23,10 @@ module Pp = struct
       | hd::((_::_2) as tl) -> Format.fprintf f "%a%a%a" pp hd sep () print tl
     in print f li
   let failwith fmt = Format.kasprintf failwith fmt
-
+  let assoc ppa ppb f li =
+    Format.fprintf f "{ @[<v>%a@]}"
+    (list (fun f () -> Format.fprintf f ";@\n")
+       (fun f (a, b) -> Format.fprintf f "%a=%a" ppa a ppb b)) li
 end
 
 module type Applicative = sig
@@ -107,7 +110,19 @@ module MakeSurface3 (F : Fixable3) = struct
   let map x =
     let module Map = F.Make(Applicatives.Map) in
     Map.foldmap x
+  let foldmap (type acc) x =
+    let module FoldMap = Applicatives.FoldMap(struct type t = acc end) in
+    let module M = F.Make(FoldMap) in
+    M.foldmap x
+end
 
+module MakeSurface4 (F : Fixable4) = struct
+  let fold (type acc) x =
+    let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
+    Fold.foldmap x
+  let map x =
+    let module Map = F.Make(Applicatives.Map) in
+    Map.foldmap x
   let foldmap (type acc) x =
     let module FoldMap = Applicatives.FoldMap(struct type t = acc end) in
     let module M = F.Make(FoldMap) in
@@ -150,11 +165,45 @@ module Fix3 (F : Fixable3) = struct
   let pp ppb ppc f p = pp ppb ppc p f
 end
 
+module Fix4 (F : Fixable4) = struct
+  type ('deco, 'a, 'b, 'c) t = F of 'deco * (('deco, 'a, 'b, 'c) t, 'a, 'b, 'c) F.t
+
+  let decoration (F (d, _)) = d
+  let fix a d = F (d, a)
+  let unfix (F (_, a)) = a
+  let wrap_acc f (F (deco, x)) acc =
+    let acc, x = f x acc in acc, F (deco, x)
+
+  module MakeApp (A:Applicative) = struct
+    open A
+    module S = F.Make(A)
+    let rec foldmap f g h (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g h) f g h x
+  end
+
+  module Surface = MakeSurface4(F)
+
+  module Deep = struct
+    let rec mapfg f g h (F (d, x)) = F (d, Surface.map (mapfg f g h) f g h x)
+    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id id x)
+    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id id x))
+  end
+
+  module Traverse = struct
+    let rec foldmap f g h (F (d, x)) acc =
+      let acc, x = f (foldmap f g h) (Surface.foldmap (foldmap f g h) g h) acc x in
+      acc, F (d, x)
+  end
+
+  let pp ppb ppc ppd = Deep.reduce (fun x f -> F.pp (fun f g -> g f) ppb ppc ppd f x)
+  let pp ppb ppc ppd f p = pp ppb ppc ppd p f
+end
+
 (* Quand un type récursif inclue un autre type récursif et qu'ils partagent deux variables de polymorphisme *)
 module FixMut  (F : Fixable4) (G : Fixable3) = struct
 
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, ('deco, 'a, 'b) u, 'a, 'b) F.t
   and ('deco, 'a, 'b) u = G of 'deco *  (('deco, 'a, 'b) u, 'a, 'b) G.t
+  (* TODO faire en sorte que u soit un Fix3, les types ne sont pas mutuellement récursifs donc ça doit passer *)
 
   let decoration_u (G (d, _)) = d
   let decoration (F (d, _)) = d
@@ -165,20 +214,7 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
   let wrap_acc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
-  module SurfaceF = struct
-    let fold (type acc) f g h i x acc =
-      let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
-      Fold.foldmap f g h i x acc
-
-    let map f g h i x =
-      let module Map = F.Make(Applicatives.Map) in
-      Map.foldmap f g h i x
-
-    let foldmap (type acc) f g h i x acc =
-      let module FoldMap = Applicatives.FoldMap(struct type t = acc end) in
-      let module M = F.Make(FoldMap) in
-      M.foldmap f g h i x acc
-  end
+  module SurfaceF = MakeSurface4(F)
   module SurfaceG = MakeSurface3(G)
 
   module Deep = struct
