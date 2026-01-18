@@ -15,6 +15,8 @@ let kw = function
   | "if"   -> IF
   | "then" -> THEN
   | "else" -> ELSE
+  | "type"  -> TYPE
+  | "of"    -> OF
   | _ -> raise Not_found
 
 let char_of_escape = function
@@ -31,9 +33,14 @@ let digit = ['0'-'9']
 let lident_start = ['a'-'z' '_']
 let uident_start = ['A'-'Z']
 let ident_char = ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']
+let identchar = ['a'-'z' 'A'-'Z' '0'-'9' '_' '\'']
 
 let lident = lident_start ident_char*
 let uident = uident_start ident_char*
+
+(* variable de type : 'a, 'foo, 't1 *)
+let tyvar = '\'' ['a'-'z' '_'] identchar*
+
 
 rule token = parse
 | [' ' '\t' '\r' '\n'] { token lexbuf }
@@ -73,6 +80,8 @@ rule token = parse
     CHAR c
   }
 | "'" ([^'\\'] as c) "'" { CHAR c }
+
+| tyvar as s { TYVAR s }
 
 | lident as s {
     try kw s with Not_found -> LIDENT s

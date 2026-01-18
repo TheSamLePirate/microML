@@ -184,11 +184,17 @@ module Expr = struct
 end
 
 module TopLvl = struct
-  type ('deco, 'tyvar, 'fields, 'binding) decl =
-    | TypeDecl of 'tyvar list * 'binding * ('deco, 'fields, 'tyvar, 'binding) Ty.Fixed.t
-    | Let of 'binding * ('deco, 'fields, 'binding) Expr.Fixed.t
-    | LetRec of 'binding * ('deco, 'fields, 'binding) Expr.Fixed.t
+  type ('deco_e, 'deco_t, 'tyvar, 'tybinding, 'fields, 'binding) decl =
+    | TypeDecl of 'tyvar list * 'tybinding * ('deco_t, 'fields, 'tyvar, 'tybinding) Ty.Fixed.t
+    | Let of 'binding * ('deco_e, 'fields, 'binding) Expr.Fixed.t
+    | LetRec of 'binding * ('deco_e, 'fields, 'binding) Expr.Fixed.t
 end
+
+
+type ('acc, 'from, 'target ) passe = {
+    init : 'acc;
+    process :  'acc -> 'from -> 'acc * 'target
+  }
 
 module type Bindings = sig
   include Map.OrderedType
@@ -206,3 +212,4 @@ module type FreshableBindings = sig
   val init : t
   val next : t -> t
 end
+

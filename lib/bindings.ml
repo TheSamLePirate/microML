@@ -1,15 +1,24 @@
 open Ast
 
-module Make(B:Bindings)(BTarget:Ast.FreshableBindings) = struct
+module Make(B:Bindings)(BTarget:Ast.FreshableBindings) :
+sig
+  type acc
+  val passe : (acc,
+               ('a, 'b, 'c, 'd, 'e, B.t) Ast.TopLvl.decl,
+               ('a, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) passe
+end = struct
   module BMap = Map.Make(B)
 
-(* bindings de string vers int *)
-  let process e =
+  type acc = BTarget.t BMap.t * BTarget.t
+
   let stringmap_add (stringmap, indice) binding =
-    indice, (BMap.add binding indice stringmap, BTarget.next indice) in
+    indice, (BMap.add binding indice stringmap, BTarget.next indice)
+
+  (* bindings de B.t vers Btarget.t *)
+  let process e acc =
   let open Expr.Fixed in
   let open Expr.Fixable in
-  let _, e = Traverse.foldmap (fun fin gin tra acc e ->
+  let acc, e = Traverse.foldmap (fun fin gin tra acc e ->
      match e with
      | Lambda (binding, in_) ->
         let ibinding, acc' = stringmap_add acc binding in
@@ -48,7 +57,25 @@ module Make(B:Bindings)(BTarget:Ast.FreshableBindings) = struct
                  (* TODO gérer l'erreur *)
                  acc, BMap.find binding map)
                e
-               (BMap.empty, BTarget.init)
-  in e
+             acc
+  in acc, e
 
+  let process acc toplvl =
+    let open Ast.TopLvl in
+    match toplvl with
+    | TypeDecl (tylist, binding_type, ty) ->
+       acc, TypeDecl (tylist, binding_type, ty)
+    | Let (binding, expr) ->
+       let acc, expr = process expr acc in
+       let ibinding, acc' = stringmap_add acc binding in
+       acc', Let(ibinding, expr)
+    | LetRec( binding, expr) ->
+       let ibinding, acc' = stringmap_add acc binding in
+       let acc', expr = process expr acc' in
+       acc', LetRec(ibinding, expr)
+
+  let passe = {
+      Ast.init = BMap.empty, BTarget.init;
+      Ast.process = process;
+  }
 end

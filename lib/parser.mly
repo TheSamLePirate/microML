@@ -1,10 +1,12 @@
 %{
 (* Adapte ces opens à ton projet *)
+open Ast
 open Ast.Expr
 
 let loc (sp, ep) = { Ast.Loc.startp = sp; Ast.Loc.endp = ep }
 let p loc x = Fixed.fix_u x loc
 let e loc x = Fixed.fix x loc
+let ty loc x = Ty.Fixed.fix x loc
 
 let mk_lambdas loc params body=
   List.fold_right (fun x acc -> e loc (Fixable.Lambda (x, acc))) params body
@@ -15,6 +17,9 @@ let mk_lambdas loc params body=
 %token <int> INT
 %token <bool> BOOL
 %token <char> CHAR
+
+%token TYPE OF
+%token <string> TYVAR   /* ex: "'a", "'b" */
 
 %token <string> LIDENT   /* variables, labels record */
 %token <string> UIDENT   /* constructeurs */
@@ -34,8 +39,7 @@ let mk_lambdas loc params body=
 
 %token EOF
 
-(* --- AST concrete types --- *)
-%type < (Ast.Loc.t, string, string) Ast.Expr.Fixed.t> main
+%type < (Ast.Loc.t, Ast.Loc.t, string, string, string, string) Ast.TopLvl.decl list> main
 %start main
 
 (* --- Precedences --- *)
@@ -55,7 +59,126 @@ let mk_lambdas loc params body=
 %%
 
 main:
-| expr EOF { $1 }
+| decl*EOF { $1 }
+
+
+decl:
+| type_decl { $1 }
+| let_decl  { $1 }
+| letrec_decl { $1 }
+
+let_decl:
+| LET b=LIDENT EQ ex=expr
+  { Ast.TopLvl.Let (b, ex) }
+
+letrec_decl:
+| LET REC b=LIDENT EQ ex=expr
+  { Ast.TopLvl.LetRec (b, ex) }
+
+/* type ('a,'b) t = ...  (ou sans params) */
+type_decl:
+| TYPE params=type_params name=LIDENT EQ rhs=ty_expr
+  {
+    Ast.TopLvl.TypeDecl (params, name, rhs)
+  }
+
+/* ---------- Paramètres de type : ('a,'b,...) ou vide ---------- */
+
+type_params:
+|                           { [] }
+| tv=TYVAR                  { [tv] }
+| LPAREN tvs=tyvars RPAREN  { tvs }
+
+tyvars:
+| tv=TYVAR                  { [tv] }
+| tv=TYVAR COMMA tvs=tyvars { tv :: tvs }
+
+/* ---------- Expressions de types ---------- */
+/* priorité : application/atom > tuple > arrow */
+
+ty_expr:
+| a=ty_tuple ARROW b=ty_expr
+    { ty (loc $sloc) (Ty.Arrow (a, b)) }
+| a=ty_tuple
+    { a }
+
+ty_tuple:
+| a=ty_app STAR bs=ty_tuple_tail
+    { ty (loc $sloc) (Ty.Tuple (a :: bs)) }
+| a=ty_app
+    { a }
+
+ty_tuple_tail:
+| b=ty_app STAR bs=ty_tuple_tail { b :: bs }
+| b=ty_app                       { [b] }
+
+/* application : t1 t2 ... T  (params puis nom) */
+ty_app:
+| a=ty_atom args=ty_args name=ty_name
+    { ty (loc $sloc) (Ty.Named (a :: args, name)) }
+| name=ty_name
+    { ty (loc $sloc) (Ty.Named ([], name)) }
+| a=ty_atom
+    { a }
+
+ty_args:
+| a=ty_atom args=ty_args { a :: args }
+|                         { [] }
+
+ty_name:
+| n=LIDENT { n }
+
+/* ---------- Atomes de type ---------- */
+
+ty_atom:
+| LPAREN t=ty_expr RPAREN { t }
+
+| LIDENT
+    {
+      match $1 with
+      | "int"  -> ty (loc $sloc) Ty.Integer
+      | "char" -> ty (loc $sloc) Ty.Char
+      | "bool" -> ty (loc $sloc) Ty.Bool
+      | _      -> ty (loc $sloc) (Ty.Named ([], $1))
+    }
+
+| tv=TYVAR
+    { ty (loc $sloc) (Ty.Var tv) }
+
+/* record type: { l1 : t1; l2 : t2; ... } */
+| LBRACE fs=ty_fields RBRACE
+    { ty (loc $sloc) (Ty.Record fs) }
+
+/* sum type: C1 of t | C2 of t | C3  (C3 sans arg = of unit → à toi de décider) */
+| cs=ty_constructors
+    { ty (loc $sloc) (Ty.Sum cs) }
+
+/* ---------- Champs record ---------- */
+
+ty_fields:
+|                                   { [] }
+| f=ty_field                        { [f] }
+| f=ty_field SEMI fs=ty_fields      { f :: fs }
+
+ty_field:
+| lbl=LIDENT COLON t=ty_expr { (lbl, t) }
+
+/* ---------- Constructeurs sum ---------- */
+
+ty_constructors:
+| c=ty_constructor                  { [c] }
+| c=ty_constructor BAR cs=ty_constructors { c :: cs }
+
+ty_constructor:
+| c=UIDENT OF t=ty_expr { (c, t) }
+| c=UIDENT
+    {
+      (* si tu veux autoriser un constructeur sans argument,
+         choisis ici une convention. Ex: unit = Tuple [] si tu l’acceptes. *)
+      (c, ty (loc $sloc) (Ty.Tuple []))
+    }
+
+
 
 (* -------- Patterns -------- *)
 pattern:

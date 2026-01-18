@@ -1,3 +1,4 @@
+let out =
   let rec map f x = match x with
     | Nil -> Nil
     | Cons (hd, tl) -> Cons (f hd, map f tl)

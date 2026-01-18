@@ -2,20 +2,28 @@ open Ast
 
 let tf x = Ty.Fixed.fix x ()
 
-module Make(B:Bindings)(BT:FreshableBindings)(F:Fields) = struct
+module Make(B:Bindings)(BT:FreshableBindings)(F:Fields) :
+sig
+
+  type ty = (unit, F.t, BT.t, B.t) Ty.Fixed.t
+
+  type acc
+  val passe : (acc,
+               (Ast.Loc.t, Ast.Loc.t, 'a, 'b, F.t, B.t) Ast.TopLvl.decl,
+               (ty, Ast.Loc.t, BT.t, B.t,  F.t, B.t) Ast.TopLvl.decl) passe
+end = struct
   module BMap = Map.Make(B)
   module BTMap = Map.Make(BT)
 
   open Expr
-
   type ty = (unit, F.t, BT.t, B.t) Ty.Fixed.t
   type typed_pattern = (ty, F.t, B.t) Fixed.u
-  type typed_expr = (ty, F.t, B.t) Fixed.t
   type env = {
       fresh : BT.t;
       bindings : ty BMap.t;
       tybindings : ty BTMap.t
     }
+  type acc = env
 
   let ppty f ty = Ty.Fixed.pp F.pp BT.pp B.pp f ty
 
@@ -227,12 +235,34 @@ module Make(B:Bindings)(BT:FreshableBindings)(F:Fields) = struct
 
   let ty_expr fin _gin _tra (env:env) _d e = ty_expr (fun a b -> fin b a) e env
 
-  let process e =
-    let env = empty in
+  let process e env =
     let env, e = Expr.Fixed.Traverse.decorate_foldmap ty_expr (fun _ -> assert false) Lib.idacc Lib.idacc e env in
     (* TODO redécorate pour suivre la map.*)
     Format.printf "env=%a@\n" ppenv env;
     let app d _ = apply_ty env d in
-    Expr.Fixed.Deep.decorate app app e
+    env, Expr.Fixed.Deep.decorate app app e
+
+  let process env toplvl =
+    let open Ast.TopLvl in
+    match toplvl with
+    | TypeDecl (_tylist, _binding_type, _ty) -> assert false
+                                                    (* env, TypeDecl (tylist, binding_type, ty) (* TODO *) *)
+    | Let (binding, expr) ->
+       let env, expr = process expr env in
+       let env = insert_poly env binding (Expr.Fixed.decoration expr) in
+       env, Let(binding, expr)
+    | LetRec (binding, expr) ->
+       let env, tc = fresh' env in
+       let env = insert_mono env binding tc in
+       let env, expr = process expr env in
+       let env, _tc = unify env tc (Expr.Fixed.decoration expr) in
+       let tc = apply_ty env tc in
+       let expr = Expr.Fixed.fix (Expr.Fixed.unfix expr) tc in
+       env, LetRec(binding, expr)
+
+  let passe = {
+      Ast.init = empty;
+      process = process
+  }
 
 end

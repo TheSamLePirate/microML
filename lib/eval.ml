@@ -52,7 +52,6 @@ let rec uncell f = function
   let lambda = uncell (function | Lambda i -> i | x -> Pp.failwith "must be lambda (%a)" pp x)
   let tuple = uncell (function | Tuple t -> t | x -> Pp.failwith "must be a tuple (%a)" pp x)
 
-  let empty_env = BindingsMap.empty
   module E = Expr.Fixable
 
   let mapp = function
@@ -113,6 +112,18 @@ let rec uncell f = function
                               b env'
 
 
-let compile e = Expr.Fixed.Deep.reduce mape mapp e
+  let compile e = Expr.Fixed.Deep.reduce mape mapp e
+
+  let compile env toplvl =
+    let open Ast.TopLvl in
+    match toplvl with
+    | TypeDecl (_, _, _) -> env, Tuple []
+    | Let (binding, expr) | LetRec( binding, expr) ->
+       let value = compile expr env in
+       let env = BindingsMap.add binding value env in env, value
+
+  let passe = { Ast.init = BindingsMap.empty;
+                Ast.process = compile
+              }
 
 end

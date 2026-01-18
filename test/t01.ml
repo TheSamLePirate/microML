@@ -1,1 +1,2 @@
-let i = 1 in i + 1
+let out =
+  let i = 1 in i + 1
