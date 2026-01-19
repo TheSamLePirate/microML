@@ -26,7 +26,7 @@ module IntFields : Ast.Fields with type t = int = struct
 end
 
 module Bindings = Bindings.Make(StringBindings)(IntBindings)
-module Ty = Typer.Make(IntBindings)(IntTypesBindings)(StringFields)
+module Ty = Typer.Make(IntBindings)(StringBindings)(StringBindings)(IntTypesBindings)(StringFields)
 module EvalI = Eval.Make(IntBindings)(StringFields)
 
 let parse_file filename =
@@ -49,7 +49,7 @@ let print_pass = {Ast.init = ();
                  Ast.process =
                    fun () value -> (), Format.printf "%a@\n" EvalI.pp value
                 }
-
+(* TODO gérer un genre d'option, gestion des erreurs, avancer petit à petit*)
 let (>|>) ast passe = snd (List.fold_left_map passe.Ast.process passe.Ast.init ast)
 let pipeline filename =
   parse_file filename
