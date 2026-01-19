@@ -7,12 +7,11 @@ sig
                ('a, 'b, 'c, 'd, 'e, B.t) Ast.TopLvl.decl,
                ('a, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) passe
 end = struct
-  module BMap = Map.Make(B)
 
-  type acc = BTarget.t BMap.t * BTarget.t
+  type acc = BTarget.t B.Map.t * BTarget.t
 
   let stringmap_add (stringmap, indice) binding =
-    indice, (BMap.add binding indice stringmap, BTarget.next indice)
+    indice, (B.Map.add binding indice stringmap, BTarget.next indice)
 
   (* bindings de B.t vers Btarget.t *)
   let process e acc =
@@ -55,7 +54,7 @@ end = struct
                (fun binding ((map, _) as acc) ->
 (*                 Format.printf "search %a in %a@\n" B.pp binding (Lib.Pp.assoc B.pp BTarget.pp) (BMap.to_list map); *)
                  (* TODO gérer l'erreur *)
-                 acc, BMap.find binding map)
+                 acc, B.Map.find binding map)
                e
              acc
   in acc, e
@@ -75,7 +74,7 @@ end = struct
        acc', LetRec(ibinding, expr)
 
   let passe = {
-      Ast.init = BMap.empty, BTarget.init;
+      Ast.init = B.Map.empty, BTarget.init;
       Ast.process = process;
   }
 end

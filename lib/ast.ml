@@ -198,11 +198,13 @@ type ('acc, 'from, 'target ) passe = {
 
 module type Bindings = sig
   include Map.OrderedType
+  module Map : Map.S with type key = t
   val pp : Format.formatter -> t -> unit
   val equal : t -> t -> bool
 end
 module type Fields = sig
   include Map.OrderedType
+  module Map : Map.S with type key = t
   val pp : Format.formatter -> t -> unit
   val equal : t -> t -> bool
 end

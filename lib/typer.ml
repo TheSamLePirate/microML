@@ -16,19 +16,15 @@ sig
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl) passe
 end = struct
-  module BMap = Map.Make(B)
-  module BTMap = Map.Make(BT)
-  module BTyNamedMap = Map.Make(BTyNamed)
-  module BTyVarMap = Map.Make(BTyVar)
-
   open Expr
   type 'a ty = ('a, F.t, BT.t, BTyNamed.t) Ty.Fixed.t
   type typed_pattern = (unit ty, F.t, B.t) Fixed.u
   type env = {
       fresh : BT.t;
-      bindings : unit ty BMap.t;
-      tybindings : unit ty BTMap.t;
-      ty_named : Ast.Loc.t ty BTyNamedMap.t
+      bindings : unit ty B.Map.t;
+      tybindings : unit ty BT.Map.t;
+      ty_named : (BT.t list * Ast.Loc.t ty) BTyNamed.Map.t;
+      fieldmap : BTyNamed.t F.Map.t
     }
   type acc = env
 
@@ -37,23 +33,23 @@ end = struct
   let ppenv f env =
     Format.fprintf f "@[{fresh:%a;@\nbindings:%a;@\ntybindings:@[%a@]@\n}@]"
     BT.pp env.fresh
-    (Lib.Pp.assoc B.pp ppty) (BMap.to_list env.bindings)
-    (Lib.Pp.assoc BT.pp ppty) (BTMap.to_list env.tybindings)
+    (Lib.Pp.assoc B.pp ppty) (B.Map.to_list env.bindings)
+    (Lib.Pp.assoc BT.pp ppty) (BT.Map.to_list env.tybindings)
 
-  let empty = { fresh = BT.init; bindings = BMap.empty; tybindings = BTMap.empty; ty_named=BTyNamedMap.empty}
+  let empty = { fresh = BT.init; bindings = B.Map.empty; tybindings = BT.Map.empty; ty_named=BTyNamed.Map.empty; fieldmap = F.Map.empty}
   let fresh env v =
     let typevar =  Ty.Var env.fresh |> tf in
     {env with
       fresh=BT.next env.fresh;
-      bindings = BMap.add v typevar env.bindings}, typevar
+      bindings = B.Map.add v typevar env.bindings}, typevar
   let fresh' env =
     let typevar =  Ty.Var env.fresh |> tf in
     {env with fresh=BT.next env.fresh}, typevar
 
-  let insert_mono env binding ty = { env with bindings = BMap.add binding ty env.bindings}
-  let insert_poly env binding ty = { env with bindings = BMap.add binding ty env.bindings}
+  let insert_mono env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
+  let insert_poly env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
 
-  let find_binding env binding = env, BMap.find binding env.bindings (* TODO généralisation *)
+  let find_binding env binding = env, B.Map.find binding env.bindings (* TODO généralisation *)
 
   let sort_sum li = List.sort (fun (a, _) (b, _) -> F.compare a b) li
 
@@ -64,11 +60,11 @@ end = struct
     | Ty.Var v1, Ty.Var v2 when v1 == v2 ->
        env, t1
     | Ty.Var v, t | t, Ty.Var v -> (* TODO *)
-       let env, t = match BTMap.find_opt v env.tybindings with
+       let env, t = match BT.Map.find_opt v env.tybindings with
        | None -> env, t
        | Some t2 -> unify env t (Ty.Fixed.unfix t2)
        in
-       let env = {env with tybindings = BTMap.add v (tf t) env.tybindings } in
+       let env = {env with tybindings = BT.Map.add v (tf t) env.tybindings } in
        env, t
     | Ty.Integer, Ty.Integer -> env, Ty.Integer
     | Ty.Char, Ty.Char -> env, Ty.Char
@@ -123,7 +119,7 @@ end = struct
   let apply_ty env ty = (* On applique la map de substitution *)
     Ty.Fixed.Deep.map
       (function
-       | Var binding -> Ty.Fixed.unfix (BTMap.find binding env.tybindings) (* TODO récursif ? *)
+       | Var binding -> Ty.Fixed.unfix (BT.Map.find binding env.tybindings) (* TODO récursif ? *)
       | x -> x )
       ty
 
@@ -244,7 +240,6 @@ end = struct
 
   let process e env =
     let env, e = Expr.Fixed.Traverse.decorate_foldmap ty_expr (fun _ -> assert false) Lib.idacc Lib.idacc e env in
-    (* TODO redécorate pour suivre la map.*)
     Format.printf "env=%a@\n" ppenv env;
     let app d _ = apply_ty env d in
     env, Expr.Fixed.Deep.decorate app app e
@@ -252,16 +247,17 @@ end = struct
   let process env toplvl =
     let open Ast.TopLvl in
     match toplvl with
-    | TypeDecl (tylist, binding, ty) ->
+    | TypeDecl (tylist, binding, ty) -> (* TODO checker la forme du type, lui interdire des typesum pas au premier niveau *)
+       let env = Ty.Fixed.Deep.foldfg (fun field env ->
+                     {env with fieldmap = F.Map.add field binding env.fieldmap}
+                   ) Lib.passacc Lib.passacc ty env in
        let (map, _), tylist' = List.fold_left_map (fun (map, fresh) ty ->
-                                   let map = BTyVarMap.add ty fresh map in
+                                   let map = BTyVar.Map.add ty fresh map in
                                    (map, BT.next fresh), fresh
-                            ) (BTyVarMap.empty, BT.init) tylist in
-       let ty = Ty.Fixed.Deep.mapfg Lib.id (fun v -> BTyVarMap.find v map) Lib.id ty in
-       let env = { env with ty_named = BTyNamedMap.add binding ty env.ty_named }
+                            ) (BTyVar.Map.empty, BT.init) tylist in
+       let ty = Ty.Fixed.Deep.mapfg Lib.id (fun v -> BTyVar.Map.find v map) Lib.id ty in
+       let env = { env with ty_named = BTyNamed.Map.add binding (tylist', ty) env.ty_named }
        in env, TypeDecl (tylist', binding, ty)
-    (* env, TypeDecl (tylist, binding_type, ty) (* TODO *) *)
-
     | Let (binding, expr) ->
        let env, expr = process expr env in
        let env = insert_poly env binding (Expr.Fixed.decoration expr) in

@@ -1,4 +1,5 @@
 let id x = x
+let passacc _ acc = acc
 let idacc x acc = acc, x
 
 module StringMap = Map.Make(String)
@@ -150,6 +151,7 @@ module Fix3 (F : Fixable3) = struct
 
   module Deep = struct
     let rec mapfg f g (F (d, x)) = F (d, Surface.map (mapfg f g) f g x)
+    let rec foldfg f g (F (_, x)) acc = Surface.fold (foldfg f g) f g x acc
     let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id x) (* bottomup reduce *)
     let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id x))
   end
@@ -184,6 +186,7 @@ module Fix4 (F : Fixable4) = struct
 
   module Deep = struct
     let rec mapfg f g h (F (d, x)) = F (d, Surface.map (mapfg f g h) f g h x)
+    let rec foldfg f g h (F (_, x)) acc = Surface.fold (foldfg f g h) f g h x acc
     let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id id x)
     let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id id x))
   end
