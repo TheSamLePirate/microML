@@ -1,3 +1,5 @@
+type 'a option = None | Some of 'a
+
 let out =
   let optmap f x = match x with
     | None -> None

@@ -1,3 +1,5 @@
+type 'a list = Nil | Cons of 'a * 'a list
+
 let out =
   let rec f n x =
     if n = 0 then x

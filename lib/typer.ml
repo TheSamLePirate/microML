@@ -1,6 +1,6 @@
 open Ast
 
-let tf x = Ty.Fixed.fix x ()
+let tf location x = Ty.Fixed.fix x location
 
 module Make(B:Bindings)(BTyVar:Bindings)(BTyNamed:Bindings)(BT:FreshableBindings)(F:Fields) :
 sig
@@ -12,17 +12,16 @@ sig
                (Ast.Loc.t, Ast.Loc.t,
                 BTyVar.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl,
-               (unit ty, Ast.Loc.t,
+               (Ast.Loc.t * Ast.Loc.t ty, Ast.Loc.t,
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl) passe
 end = struct
   open Expr
   type 'a ty = ('a, F.t, BT.t, BTyNamed.t) Ty.Fixed.t
-  type typed_pattern = (unit ty, F.t, B.t) Fixed.u
   type env = {
       fresh : BT.t;
-      bindings : unit ty B.Map.t;
-      tybindings : unit ty BT.Map.t;
+      bindings : Ast.Loc.t ty B.Map.t;
+      tybindings : Ast.Loc.t ty BT.Map.t;
       ty_named : (BT.t list * Ast.Loc.t ty) BTyNamed.Map.t;
       fieldmap : BTyNamed.t F.Map.t
     }
@@ -37,14 +36,23 @@ end = struct
     (Lib.Pp.assoc BT.pp ppty) (BT.Map.to_list env.tybindings)
 
   let empty = { fresh = BT.init; bindings = B.Map.empty; tybindings = BT.Map.empty; ty_named=BTyNamed.Map.empty; fieldmap = F.Map.empty}
-  let fresh env v =
-    let typevar =  Ty.Var env.fresh |> tf in
+  let fresh location env v =
+    let typevar =  Ty.Var env.fresh |> tf location in
     {env with
       fresh=BT.next env.fresh;
       bindings = B.Map.add v typevar env.bindings}, typevar
-  let fresh' env =
-    let typevar =  Ty.Var env.fresh |> tf in
-    {env with fresh=BT.next env.fresh}, typevar
+  let fresh'var env =
+    {env with fresh=BT.next env.fresh}, env.fresh
+  let fresh' location env =
+    let env, tv = fresh'var env in
+    let typevar =  Ty.Var tv |> tf location in
+    env, typevar
+
+  let instantiate (env:env) tyvars (ty : Ast.Loc.t ty) : env * Ast.Loc.t ty =
+    let env, assocvars = List.fold_left (fun (env, assocvars) var ->
+                             let env, var' = fresh'var env in
+                             env, BT.Map.add var var' assocvars) (env, BT.Map.empty) tyvars in
+    env, Ty.Fixed.Deep.mapfg Lib.id (fun var -> BT.Map.find var assocvars) Lib.id ty
 
   let insert_mono env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
   let insert_poly env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
@@ -54,17 +62,23 @@ end = struct
   let sort_sum li = List.sort (fun (a, _) (b, _) -> F.compare a b) li
 
   (* TODO utiliser le zip *)
-  let rec unify env t1 t2 =
-    Format.printf "env:%a@\nunify @[<v>-%a@\n-%a@]@\n" ppenv env ppty (tf t1) ppty (tf t2);
+  let rec unify location env t1 t2 =
+    Format.printf "env:%a@\nunify @[<v>-%a@\n-%a@]@\n" ppenv env ppty (tf location t1) ppty (tf location t2);
     match t1, t2 with
+    | Ty.Named (li1, d1), Named (li2, d2) when d1 == d2 -> (* TODO instancier sauf si c'est pas type somme *)
+       let env, li = match Lib.zip_opt li1 li2 with
+           | None -> Lib.Pp.failwith "%a vs %a" ppty (tf location t1) ppty (tf location t2)
+           | Some li -> List.fold_left_map (fun env (t1, t2) -> unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
+       let li = List.map (tf location) li
+       in env, Ty.Named(li, d1)
     | Ty.Var v1, Ty.Var v2 when v1 == v2 ->
        env, t1
-    | Ty.Var v, t | t, Ty.Var v -> (* TODO *)
+    | Ty.Var v, t | t, Ty.Var v -> (* TODO interdire un type récursif *)
        let env, t = match BT.Map.find_opt v env.tybindings with
        | None -> env, t
-       | Some t2 -> unify env t (Ty.Fixed.unfix t2)
+       | Some t2 -> unify location env t (Ty.Fixed.unfix t2)
        in
-       let env = {env with tybindings = BT.Map.add v (tf t) env.tybindings } in
+       let env = {env with tybindings = BT.Map.add v (tf location t) env.tybindings } in
        env, t
     | Ty.Integer, Ty.Integer -> env, Ty.Integer
     | Ty.Char, Ty.Char -> env, Ty.Char
@@ -78,8 +92,8 @@ end = struct
             match F.compare name1 name2 with
               | -1 -> merge env ((name1, ty1)::acc) li2 tl1
               | 1 -> merge env ((name2, ty2)::acc) li1 tl2
-              | 0 -> let env, ty = unify env (Ty.Fixed.unfix ty1) (Ty.Fixed.unfix ty2) in
-                     merge env ((name1, (Ty.Fixed.fix ty ()))::acc) tl1 tl2
+              | 0 -> let env, ty = unify location env (Ty.Fixed.unfix ty1) (Ty.Fixed.unfix ty2) in
+                     merge env ((name1, (tf location ty))::acc) tl1 tl2
               | _ -> assert false
        in let env, li = merge env [] li1 li2
           in env, Ty.Sum li
@@ -87,34 +101,42 @@ end = struct
        begin match Lib.zip_opt li1 li2 with
        | None -> assert false (* TODO erreur de type *)
        | Some li ->
-          let env, li = List.fold_left_map (fun env (t1, t2) -> unify env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
-          env, Ty.Tuple (List.map (fun t -> Ty.Fixed.fix t ()) li)
+          let env, li = List.fold_left_map (fun env (t1, t2) -> unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
+          env, Ty.Tuple (List.map (tf location) li)
        end
     | Ty.Arrow (f1, t1), Ty.Arrow (f2, t2) ->
-       let env, f1 = unify env (Ty.Fixed.unfix f1) (Ty.Fixed.unfix f2) in
-       let env, t1 = unify env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2) in
-       env, Ty.Arrow(tf f1, tf t1)
+       let env, f1 = unify location env (Ty.Fixed.unfix f1) (Ty.Fixed.unfix f2) in
+       let env, t1 = unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2) in
+       env, Ty.Arrow(tf location f1, tf location t1)
     | _ -> assert false
 
-  let merge_tysum env = function
-    | hd::tl -> List.fold_left (fun (env, t1) t2 -> unify env t1 t2) (env, hd) tl
+  let merge_patterns location env t1 t2 = unify location env t1 t2 (* TODO *)
+
+  let merge_patterns location env = function
+    | hd::tl -> List.fold_left (fun (env, t1) t2 -> merge_patterns location env t1 t2) (env, hd) tl
     | [] -> assert false
 
-  let merge_tysum env li =
-    let env, t = merge_tysum env (List.map Ty.Fixed.unfix li)
-    in env, tf t
+  let merge_patterns location env li =
+    let env, t = merge_patterns location env (List.map Ty.Fixed.unfix li)
+    in env, tf location t
 
-  let unify env ta tb =
-    let env, t = unify env (Ty.Fixed.unfix ta) (Ty.Fixed.unfix tb)
-    in env, tf t
+  let unify location env ta tb =
+    let env, t = unify location env (Ty.Fixed.unfix ta) (Ty.Fixed.unfix tb)
+    in env, tf location t
 
-  let ty_pattern _ pat env =
+  let ty_of_pat pat = snd (Fixed.decoration_u pat)
+  let ty_of_expr e = snd (Fixed.decoration e)
+  let location_of_expr e = fst (Fixed.decoration e)
+
+  let ty_pattern location pat env =
     match pat with
-    | Pattern.Var v -> fresh env v
-    | Tuple li -> let types = List.map (fun i -> Fixed.decoration_u i) li
-                  in env, Ty.Tuple types |> tf
-    | Construct (a, p) ->
-       env, Ty.Sum [a, Fixed.decoration_u p] |> tf
+    | Pattern.Var v -> let env, ty = fresh location env v in env, (location, ty)
+    | Pattern.Tuple li -> let types = List.map ty_of_pat li
+                          in env, (location, Ty.Tuple types |> tf location)
+    | Pattern.Construct (a, p) ->
+       env, (location, Ty.Sum [a, ty_of_pat p] |> tf location)
+
+  let ty_pattern pat env = Fixed.Deep.decorate_foldmap_u ty_pattern pat env
 
   let apply_ty env ty = (* On applique la map de substitution *)
     Ty.Fixed.Deep.map
@@ -123,125 +145,132 @@ end = struct
       | x -> x )
       ty
 
-  let ty_pattern pat env : env * typed_pattern = Fixed.Deep.decorate_foldmap_u ty_pattern pat env
-
-  let ty_expr tra expr env =
+  let ty_expr location tra expr env =
+    let ef x = location, tf location x in
     match expr with
-    | Fixable.Integer i -> env, Ty.Integer |> tf, Fixable.Integer i
-    | Fixable.Char c -> env, Ty.Char |> tf, Fixable.Char c
-    | Fixable.Bool b -> env, Ty.Bool |> tf, Fixable.Bool b
+    | Fixable.Integer i -> env, Ty.Integer |> ef, Fixable.Integer i
+    | Fixable.Char c -> env, Ty.Char |> ef, Fixable.Char c
+    | Fixable.Bool b -> env, Ty.Bool |> ef, Fixable.Bool b
     | Fixable.Tuple li ->
        let env, li = List.fold_left_map tra env li in
-       let types = List.map Fixed.decoration li in
-       env, Ty.Tuple types |> tf, Fixable.Tuple li
+       let types = List.map ty_of_expr li in
+       env, Ty.Tuple types |> ef, Fixable.Tuple li
     | Fixable.Construct (a, e) ->
        let env, e = tra env e in
-       let te = Fixed.decoration e in
-       env, Ty.Sum [a, te] |> tf, Fixable.Construct (a, e)
+       let te = ty_of_expr e in
+       let tout = tf location ( Ty.Sum [a, te]) in
+       begin match F.Map.find_opt a env.fieldmap with
+       | None -> Lib.Pp.failwith "unknown constructor %a" F.pp a
+       | Some s -> let tyvars, ty = BTyNamed.Map.find s env.ty_named in
+                   let env, tout' = instantiate env tyvars ty in
+                   let env, tout' = unify location env tout tout' in
+                   env, (location, tout'), Fixable.Construct (a, e)
+       end
     | Fixable.Lambda (c, a) ->
-       let env, tc = fresh env c in
+       let env, tc = fresh location env c in
        let env = insert_mono env c tc in
        let env, a = tra env a in
-       let ta = Fixed.decoration a in
-       env, Ty.Arrow (tc, ta)|> tf, Fixable.Lambda (c, a)
+       let ta = ty_of_expr a in
+       env, Ty.Arrow (tc, ta)|> ef, Fixable.Lambda (c, a)
     | Fixable.BinOp (a, op, b) ->
        let t0 = match op with
-         | Add | Sub | Mul | Div | Lt | Le | Gt | Ge -> Some(tf Ty.Integer)
-         | And | Or -> Some (tf Ty.Bool)
+         | Add | Sub | Mul | Div | Lt | Le | Gt | Ge -> Some(tf location Ty.Integer)
+         | And | Or -> Some (tf location Ty.Bool)
          | _ -> None
        in
        let env, a = tra env a in
        let env, b = tra env b in
-       let ta = Fixed.decoration a in
-       let tb = Fixed.decoration b in
-       let env, t = unify env ta tb in
+       let ta = ty_of_expr a in
+       let tb = ty_of_expr b in
+       let env, t = unify location env ta tb in
        let env, t = match t0 with
          | None -> env, t
-         | Some t0 -> unify env t0 t in
-       env, t, Fixable.BinOp (a, op, b)
+         | Some t0 -> unify location env t0 t in
+       env, (location, t), Fixable.BinOp (a, op, b)
     | Fixable.UnOp (op, a) ->
        let t = match op with
          | Neg -> Ty.Integer
          | Not -> Ty.Bool in
        let env, a = tra env a in
-       let ta = Fixed.decoration a in
-       let t = tf t in
-       let env, t = unify env ta t in
-       env, t, Fixable.UnOp(op, a)
+       let ta = ty_of_expr a in
+       let env, t = unify location env ta (tf location t) in
+       env, (location, t), Fixable.UnOp(op, a)
     | Fixable.Apply (a, b) ->
        let env, a = tra env a in
-       let ta = Fixed.decoration a in
+       let ta = ty_of_expr a in
        let env, b = tra env b in
-       let tb = Fixed.decoration b in
-       let env, tout = fresh' env in
-       let t = Ty.Arrow (tb, tout)|> tf in
-       let env, _t = unify env t ta in
-       env, tout, Fixable.Apply (a, b)
+       let tb = ty_of_expr b in
+       let env, tout = fresh' location env in
+       let t = Ty.Arrow (tb, tout)|> tf location in
+       let env, _t = unify location env t ta in
+       env, (location, tout), Fixable.Apply (a, b)
     | Fixable.Record li ->
        let env, li = List.fold_left_map (fun env (a, b) ->
                          let env, b = tra env b in
                          env, (a, b)) env li in
-       let t = Ty.Record (List.map (fun (a, b) -> a, Fixed.decoration b) li) |> tf in
-       env, t, Record (li)
+       let t = Ty.Record (List.map (fun (a, b) -> a, ty_of_expr b) li) in
+       env, ef t, Record (li)
     | Fixable.PatternMatch (a, li) ->
        let env, a = tra env a in
-       let ta = Fixed.decoration a in
+       let ta = ty_of_expr a in
        let env, li = List.fold_left_map (fun env (pat, e) ->
                          let env, p = ty_pattern pat env in
                          let env, e = tra env e in
                          env, (p, e)) env li in
        let patterns, expressions = List.split li in
-       let env, ty_sum = merge_tysum env (List.map Fixed.decoration_u patterns) in
+       let env, ty_sum = merge_patterns location env (List.map ty_of_pat patterns) in
        let env, tout = match expressions with
          | [] -> assert false
          | hd::tl ->
-            let tout = Fixed.decoration hd in
-            List.fold_left (fun (env, tout) e -> unify env tout (Fixed.decoration e)) (env, tout) tl in
-       let env, _ty_sum = unify env ty_sum ta in
-       env, tout, Fixable.PatternMatch (a, li)
+            let tout = ty_of_expr hd in
+            List.fold_left (fun (env, tout) e -> unify location env tout (ty_of_expr e)) (env, tout) tl in
+       let env, _ty_sum = unify location env ty_sum ta in
+       env, (location, tout), Fixable.PatternMatch (a, li)
     | Fixable.AccessRecord (e, b) ->
        let env, e = tra env e in
-       let te = Fixed.decoration e in
-       let env, tfield = fresh' env in
-       let t = Ty.Record [b, tfield] |> tf in
-       let env, _t = unify env t te in
-       env, tfield, Fixable.AccessRecord (e, b)
+       let te = ty_of_expr e in
+       let env, tfield = fresh' location env in
+       let t = Ty.Record [b, tfield] |> tf location in
+       let env, _t = unify location env t te in
+       env, (location, tfield), Fixable.AccessRecord (e, b)
     | Fixable.IfThenElse (a, b, c) ->
        let env, a = tra env a in
        let env, b = tra env b in
        let env, c = tra env c in
-       let ta = Fixed.decoration a in
-       let tb = Fixed.decoration b in
-       let tc = Fixed.decoration c in
-       let env, tb = unify env tb tc in
-       let env, _ta = unify env ta (tf Ty.Bool) in
-       env, tb, Fixable.IfThenElse(a, b, c)
+       let ta = ty_of_expr a in
+       let tb = ty_of_expr b in
+       let tc = ty_of_expr c in
+       let env, tb = unify location env tb tc in
+       let env, _ta = unify location env ta (tf location Ty.Bool) in
+       env, (location, tb), Fixable.IfThenElse(a, b, c)
     | Fixable.LetIn (c, a, b) ->
        let env, a = tra env a in
-       let ta = Fixed.decoration a in
+       let ta = ty_of_expr a in
        let env = insert_poly env c ta in
        let env, b = tra env b in
-       let tb = Fixed.decoration b in
-       env, tb, Fixable.LetIn(c, a, b)
+       let tb = ty_of_expr b in
+       env, (location, tb), Fixable.LetIn(c, a, b)
     | Fixable.LetRecIn(c, a, b) ->
-       let env, tc = fresh' env in
+       let env, tc = fresh' location env in
        let env = insert_mono env c tc in
        let env, a = tra env a in
-       let ta = Fixed.decoration a in
-       let env, _ta = unify env ta tc in
+       let ta = ty_of_expr a in
+       let env, _ta = unify location env ta tc in
        let env, b = tra env b in
-       let tb = Fixed.decoration b in
-       env, tb, Fixable.LetRecIn(c, a, b)
+       let tb = ty_of_expr b in
+       env, (location, tb), Fixable.LetRecIn(c, a, b)
     | Fixable.Var c ->
        let env, tc = find_binding env c in
-       env, tc, Fixable.Var c
+       env, (location, tc), Fixable.Var c
 
-  let ty_expr fin _gin _tra (env:env) _d e = ty_expr (fun a b -> fin b a) e env
+  let ty_expr fin _gin _tra (env:env) location e = ty_expr location (fun a b -> fin b a) e env
 
   let process e env =
     let env, e = Expr.Fixed.Traverse.decorate_foldmap ty_expr (fun _ -> assert false) Lib.idacc Lib.idacc e env in
     Format.printf "env=%a@\n" ppenv env;
-    let app d _ = apply_ty env d in
+    let app (loc, ty) _ =
+      let ty = apply_ty env ty in
+      loc, ty in
     env, Expr.Fixed.Deep.decorate app app e
 
   let process env toplvl =
@@ -260,15 +289,17 @@ end = struct
        in env, TypeDecl (tylist', binding, ty)
     | Let (binding, expr) ->
        let env, expr = process expr env in
-       let env = insert_poly env binding (Expr.Fixed.decoration expr) in
+       let env = insert_poly env binding (ty_of_expr expr) in
        env, Let(binding, expr)
     | LetRec (binding, expr) ->
-       let env, tc = fresh' env in
+       let location = Expr.Fixed.decoration expr in
+       let env, tc = fresh' location env in
        let env = insert_mono env binding tc in
        let env, expr = process expr env in
-       let env, _tc = unify env tc (Expr.Fixed.decoration expr) in
+       let loc = location_of_expr expr in
+       let env, _tc = unify loc env tc (ty_of_expr expr) in
        let tc = apply_ty env tc in
-       let expr = Expr.Fixed.fix (Expr.Fixed.unfix expr) tc in
+       let expr = Expr.Fixed.fix (Expr.Fixed.unfix expr) (loc, tc) in
        env, LetRec(binding, expr)
 
   let passe = {
