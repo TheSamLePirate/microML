@@ -29,11 +29,11 @@ module Ty = struct
           | Var x -> ppc f x
           | Tuple [] -> Format.fprintf f "unit"
           | Tuple li -> Pp.list (fun f () -> Format.fprintf f " * ") ppa f li
-          | Sum li -> Format.fprintf f "@[<v>%a@]" (Pp.list (fun f () -> Format.fprintf f "@\n| ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
+          | Sum li -> Format.fprintf f "( @[<v>%a@]@\n)" (Pp.list (fun f () -> Format.fprintf f "@\n| ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
           | Record li ->
              Format.fprintf f "{ @[%a@]}"
              (Pp.list (fun f () -> Format.fprintf f "@\n; ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
-          | Arrow (a, b) -> Format.fprintf f "(%a -> %a)" ppa a ppa b
+          | Arrow (a, b) -> Format.fprintf f "@[(%a ->@ %a)@]" ppa a ppa b
           | Named (li, d) -> Format.fprintf f "(%a) %a" (Pp.list (fun f () -> Format.fprintf f ",@ ") ppa) li ppd d
         module Make(F:Applicative) = struct
           open F

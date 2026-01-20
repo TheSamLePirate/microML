@@ -108,7 +108,10 @@ end = struct
        let env, f1 = unify location env (Ty.Fixed.unfix f1) (Ty.Fixed.unfix f2) in
        let env, t1 = unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2) in
        env, Ty.Arrow(tf location f1, tf location t1)
-    | _ -> assert false
+    | _ ->
+       Lib.Pp.failwith "@\nCannot unify @[<v>%a@\nvs :@\n%a@]@\n(location %a)@\n"
+         ppty (tf location t1) ppty (tf location t2)
+         Ast.Loc.pp location
 
   let merge_patterns location env t1 t2 = unify location env t1 t2 (* TODO *)
 
@@ -173,20 +176,21 @@ end = struct
        let ta = ty_of_expr a in
        env, Ty.Arrow (tc, ta)|> ef, Fixable.Lambda (c, a)
     | Fixable.BinOp (a, op, b) ->
-       let t0 = match op with
-         | Add | Sub | Mul | Div | Lt | Le | Gt | Ge -> Some(tf location Ty.Integer)
-         | And | Or -> Some (tf location Ty.Bool)
-         | _ -> None
+       let t0, t_out = match op with
+         | Add | Sub | Mul | Div -> Some(tf location Ty.Integer), Ty.Integer (* int -> int -> int *)
+         | Lt | Le | Gt | Ge ->  Some(tf location Ty.Integer), Ty.Bool (* int -> int -> bool *)
+         | And | Or -> Some (tf location Ty.Bool), Ty.Bool (* bool -> bool -> bool *)
+         | Eq | Neq -> None, Ty.Bool (* 'a -> 'a -> bool *)
        in
        let env, a = tra env a in
        let env, b = tra env b in
        let ta = ty_of_expr a in
        let tb = ty_of_expr b in
        let env, t = unify location env ta tb in
-       let env, t = match t0 with
+       let env, _t = match t0 with
          | None -> env, t
          | Some t0 -> unify location env t0 t in
-       env, (location, t), Fixable.BinOp (a, op, b)
+       env, (location, tf location  t_out), Fixable.BinOp (a, op, b)
     | Fixable.UnOp (op, a) ->
        let t = match op with
          | Neg -> Ty.Integer

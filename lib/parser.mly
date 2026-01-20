@@ -11,6 +11,24 @@ let ty loc x = Ty.Fixed.fix x loc
 let mk_lambdas loc params body=
   List.fold_right (fun x acc -> e loc (Fixable.Lambda (x, acc))) params body
 
+let mk_ty_app loc atoms =
+  match List.rev atoms with
+  | [] -> failwith "mk_ty_app: empty"
+  | [a] -> a
+  | name :: args_rev ->
+      (* On ne permet l'application que si le dernier atome est un Named([], id) *)
+      match name with
+      | Ty.Fixed.F (_d, Ty.Named ([], id)) ->
+          let args = List.rev args_rev in
+          ty loc (Ty.Named (args, id))
+      | _ ->
+          (* ex: ('a -> 'b) 'c : illégal, ou int int : illégal *)
+          (* Choix: erreur de parse ou erreur plus tard *)
+          Lib.Pp.failwith "type application: expected type constructor at end [%a]"
+                          (Lib.Pp.list (fun f () -> Format.fprintf f "; ")
+                                       (Ast.Ty.Fixed.pp Lib.Pp.string Lib.Pp.string Lib.Pp.string)
+                          ) atoms
+
 %}
 
 (* --- Tokens --- *)
@@ -61,28 +79,73 @@ let mk_lambdas loc params body=
 main:
 | decl*EOF { $1 }
 
-
 decl:
 | type_decl { $1 }
 | let_decl  { $1 }
 | letrec_decl { $1 }
 
 let_decl:
-| LET b=LIDENT EQ ex=expr
-  { Ast.TopLvl.Let (b, ex) }
+| LET b=LIDENT EQ ex=expr { Ast.TopLvl.Let (b, ex) }
 
 letrec_decl:
-| LET REC b=LIDENT EQ ex=expr
-  { Ast.TopLvl.LetRec (b, ex) }
+| LET REC b=LIDENT EQ ex=expr { Ast.TopLvl.LetRec (b, ex) }
 
 /* type ('a,'b) t = ...  (ou sans params) */
 type_decl:
-| TYPE params=type_params name=LIDENT EQ rhs=ty_expr
-  {
-    Ast.TopLvl.TypeDecl (params, name, rhs)
-  }
+| TYPE params=type_params name=LIDENT EQ rhs=ty_rhs {  Ast.TopLvl.TypeDecl (params, name, rhs) }
+
+
+
+ty_expr:
+| a=ty_arrow { a }
+
+ty_arrow:
+| a=ty_prod ARROW b=ty_arrow
+    { ty (loc $sloc) (Ty.Arrow (a, b)) }
+| a=ty_prod
+    { a }
+
+ty_prod:
+| a=ty_app STAR bs=ty_prod_tail
+    { ty (loc $sloc) (Ty.Tuple (a :: bs)) }
+| a=ty_app
+    { a }
+
+ty_prod_tail:
+| b=ty_app STAR bs=ty_prod_tail { b :: bs }
+| b=ty_app                      { [b] }
+
+/* Application : une suite d’atomes, associée à gauche
+   ex: int list list = ((int list) list) */
+ty_app:
+| atoms=ty_atoms
+    { mk_ty_app (loc $sloc) atoms }
+
+ty_atoms:
+| a=ty_atom                      { [a] }
+| a=ty_atom rest=ty_atoms        { a :: rest }
+
+/* Atomes : pas d’application ici */
+ty_atom:
+| LPAREN t=ty_expr RPAREN        { t }
+| tv=TYVAR                       { ty (loc $sloc) (Ty.Var tv) }
+| id=LIDENT
+    {
+      match id with
+      | "int"  -> ty (loc $sloc) Ty.Integer
+      | "char" -> ty (loc $sloc) Ty.Char
+      | "bool" -> ty (loc $sloc) Ty.Bool
+      | _      -> ty (loc $sloc) (Ty.Named ([], id))
+    }
+
+ty_rhs:
+| cs=ty_constructors { ty (loc $sloc) (Ty.Sum cs) }
+| LBRACE fs=ty_fields RBRACE  { ty (loc $sloc) (Ty.Record fs) }
+| t=ty_expr  { t }
 
 /* ---------- Paramètres de type : ('a,'b,...) ou vide ---------- */
+ty_constr:
+| id=LIDENT { id }
 
 type_params:
 |                           { [] }
@@ -96,62 +159,22 @@ tyvars:
 /* ---------- Expressions de types ---------- */
 /* priorité : application/atom > tuple > arrow */
 
-ty_expr:
-| a=ty_tuple ARROW b=ty_expr
-    { ty (loc $sloc) (Ty.Arrow (a, b)) }
-| a=ty_tuple
-    { a }
-
 ty_tuple:
-| a=ty_app STAR bs=ty_tuple_tail
-    { ty (loc $sloc) (Ty.Tuple (a :: bs)) }
-| a=ty_app
-    { a }
+| a=ty_app STAR bs=ty_tuple_tail { ty (loc $sloc) (Ty.Tuple (a :: bs)) }
+| a=ty_app { a }
 
 ty_tuple_tail:
 | b=ty_app STAR bs=ty_tuple_tail { b :: bs }
 | b=ty_app                       { [b] }
 
-/* application : t1 t2 ... T  (params puis nom) */
-ty_app:
-| a=ty_atom args=ty_args name=ty_name
-    { ty (loc $sloc) (Ty.Named (a :: args, name)) }
-| name=ty_name
-    { ty (loc $sloc) (Ty.Named ([], name)) }
-| a=ty_atom
-    { a }
-
 ty_args:
-| a=ty_atom args=ty_args { a :: args }
-|                         { [] }
+| t=ty_expr                 { [t] }
+| t=ty_expr COMMA ts=ty_args { t :: ts }
 
 ty_name:
 | n=LIDENT { n }
 
-/* ---------- Atomes de type ---------- */
 
-ty_atom:
-| LPAREN t=ty_expr RPAREN { t }
-
-| LIDENT
-    {
-      match $1 with
-      | "int"  -> ty (loc $sloc) Ty.Integer
-      | "char" -> ty (loc $sloc) Ty.Char
-      | "bool" -> ty (loc $sloc) Ty.Bool
-      | _      -> ty (loc $sloc) (Ty.Named ([], $1))
-    }
-
-| tv=TYVAR
-    { ty (loc $sloc) (Ty.Var tv) }
-
-/* record type: { l1 : t1; l2 : t2; ... } */
-| LBRACE fs=ty_fields RBRACE
-    { ty (loc $sloc) (Ty.Record fs) }
-
-/* sum type: C1 of t | C2 of t | C3  (C3 sans arg = of unit → à toi de décider) */
-| cs=ty_constructors
-    { ty (loc $sloc) (Ty.Sum cs) }
 
 /* ---------- Champs record ---------- */
 
@@ -171,12 +194,7 @@ ty_constructors:
 
 ty_constructor:
 | c=UIDENT OF t=ty_expr { (c, t) }
-| c=UIDENT
-    {
-      (* si tu veux autoriser un constructeur sans argument,
-         choisis ici une convention. Ex: unit = Tuple [] si tu l’acceptes. *)
-      (c, ty (loc $sloc) (Ty.Tuple []))
-    }
+| c=UIDENT { (c, ty (loc $sloc) (Ty.Tuple [])) }
 
 
 
