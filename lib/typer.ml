@@ -48,11 +48,11 @@ end = struct
     let typevar =  Ty.Var tv |> tf location in
     env, typevar
 
-  let instantiate (env:env) tyvars (ty : Ast.Loc.t ty) : env * Ast.Loc.t ty =
-    let env, assocvars = List.fold_left (fun (env, assocvars) var ->
+  let instantiate (env:env) tyvars (ty : Ast.Loc.t ty) =
+    let (env, assocvars), nvars = List.fold_left_map (fun (env, assocvars) var ->
                              let env, var' = fresh'var env in
-                             env, BT.Map.add var var' assocvars) (env, BT.Map.empty) tyvars in
-    env, Ty.Fixed.Deep.mapfg Lib.id (fun var -> BT.Map.find var assocvars) Lib.id ty
+                             (env, BT.Map.add var var' assocvars), var') (env, BT.Map.empty) tyvars in
+    env, nvars, Ty.Fixed.Deep.mapfg Lib.id (fun var -> BT.Map.find var assocvars) Lib.id ty
 
   let insert_mono env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
   let insert_poly env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
@@ -65,13 +65,13 @@ end = struct
   let rec unify location env t1 t2 =
     Format.printf "env:%a@\nunify @[<v>-%a@\n-%a@]@\n" ppenv env ppty (tf location t1) ppty (tf location t2);
     match t1, t2 with
-    | Ty.Named (li1, d1), Named (li2, d2) when d1 == d2 -> (* TODO instancier sauf si c'est pas type somme *)
+    | Ty.Named (li1, d1), Named (li2, d2) when BTyNamed.equal d1 d2 -> (* TODO instancier sauf si c'est pas type somme *)
        let env, li = match Lib.zip_opt li1 li2 with
            | None -> Lib.Pp.failwith "%a vs %a" ppty (tf location t1) ppty (tf location t2)
            | Some li -> List.fold_left_map (fun env (t1, t2) -> unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
        let li = List.map (tf location) li
        in env, Ty.Named(li, d1)
-    | Ty.Var v1, Ty.Var v2 when v1 == v2 ->
+    | Ty.Var v1, Ty.Var v2 when BT.equal v1 v2 ->
        env, t1
     | Ty.Var v, t | t, Ty.Var v -> (* TODO interdire un type récursif *)
        let env, t = match BT.Map.find_opt v env.tybindings with
@@ -113,6 +113,30 @@ end = struct
          ppty (tf location t1) ppty (tf location t2)
          Ast.Loc.pp location
 
+  let canonique_pattern location env t =
+    Ty.Fixed.Deep.foldmap (fun env ty ->
+        match ty with
+        | Ty.Sum (((name, _)::_) as li) ->
+           begin match F.Map.find_opt name env.fieldmap with
+           | None -> Lib.Pp.failwith "unknown constructor %a" F.pp name
+           | Some tyname ->
+              let (tyvars, def) = BTyNamed.Map.find tyname env.ty_named in
+              let env, tyvars, def = instantiate env tyvars def in
+              let tyvars = List.map (fun v -> tf location (Ty.Var v)) tyvars in
+              let def_assoc = match Ty.Fixed.unfix def with
+                | Ty.Sum li2 -> li2
+                | _ -> assert false
+              in
+              let env = List.fold_left (fun env (name, ty) ->
+                            let ty2 = List.assoc name def_assoc in
+                            let env, _ = unify location env  (Ty.Fixed.unfix ty) (Ty.Fixed.unfix ty2) in
+                            env
+                          ) env li in
+              env, Ty.Named(tyvars, tyname)
+           end
+        | _ -> env, ty
+      ) t env
+
   let merge_patterns location env t1 t2 = unify location env t1 t2 (* TODO *)
 
   let merge_patterns location env = function
@@ -120,8 +144,10 @@ end = struct
     | [] -> assert false
 
   let merge_patterns location env li =
-    let env, t = merge_patterns location env (List.map Ty.Fixed.unfix li)
-    in env, tf location t
+    let env, t = merge_patterns location env (List.map Ty.Fixed.unfix li) in
+    let t = tf location t in
+    let env, t = canonique_pattern location env t in
+    env, t
 
   let unify location env ta tb =
     let env, t = unify location env (Ty.Fixed.unfix ta) (Ty.Fixed.unfix tb)
@@ -161,13 +187,20 @@ end = struct
     | Fixable.Construct (a, e) ->
        let env, e = tra env e in
        let te = ty_of_expr e in
-       let tout = tf location ( Ty.Sum [a, te]) in
        begin match F.Map.find_opt a env.fieldmap with
        | None -> Lib.Pp.failwith "unknown constructor %a" F.pp a
        | Some s -> let tyvars, ty = BTyNamed.Map.find s env.ty_named in
-                   let env, tout' = instantiate env tyvars ty in
-                   let env, tout' = unify location env tout tout' in
-                   env, (location, tout'), Fixable.Construct (a, e)
+                   let env, nvars, tout' = instantiate env tyvars ty in
+                   let te' = match Ty.Fixed.unfix tout' with
+                     | Ty.Sum li -> List.assoc a li
+                     | _ -> assert false
+                   in
+                   let env, _te' = unify location env te te' in
+                   let nvars = List.map (fun v ->
+                                   match BT.Map.find_opt v env.tybindings with
+                                   | Some s -> s
+                                   | None -> tf location (Ty.Var v)) nvars in
+                   env, ef (Ty.Named(nvars, s)), Fixable.Construct (a, e)
        end
     | Fixable.Lambda (c, a) ->
        let env, tc = fresh location env c in

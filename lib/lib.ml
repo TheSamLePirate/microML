@@ -154,6 +154,10 @@ module Fix3 (F : Fixable3) = struct
     let rec foldfg f g (F (_, x)) acc = Surface.fold (foldfg f g) f g x acc
     let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id x) (* bottomup reduce *)
     let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id x))
+    let rec foldmap f (F (d, x)) acc =
+      let acc, x = Surface.foldmap (foldmap f) idacc idacc x acc in
+      let acc, tofix = f acc x in
+      acc, F( d, tofix)
   end
 
   module Traverse = struct
@@ -189,6 +193,11 @@ module Fix4 (F : Fixable4) = struct
     let rec foldfg f g h (F (_, x)) acc = Surface.fold (foldfg f g h) f g h x acc
     let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id id x)
     let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id id x))
+    let rec foldmap f (F (d, x)) acc =
+      let acc, x = Surface.foldmap (foldmap f) idacc idacc idacc x acc in
+      let acc, tofix = f acc x in
+      acc, F( d, tofix)
+
   end
 
   module Traverse = struct
