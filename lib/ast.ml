@@ -102,19 +102,11 @@ module Expr = struct
                | Lt | Le | Gt | Ge | Neq
                | And | Or
 
-  let ppop f = function
-    | Add -> Format.fprintf f "+"
-    | Sub -> Format.fprintf f "-"
-    | Mul -> Format.fprintf f "*"
-    | Div -> Format.fprintf f "/"
-    | And -> Format.fprintf f "and"
-    | Or -> Format.fprintf f "or"
-    | Eq -> Format.fprintf f "=="
-    | Neq -> Format.fprintf f "!="
-    | Lt -> Format.fprintf f "<"
-    | Gt -> Format.fprintf f ">"
-    | Ge -> Format.fprintf f ">="
-    | Le -> Format.fprintf f "<="
+  let ppop f x =
+    Format.fprintf f (
+        match x with Add -> "+" | Sub -> "-" | Mul -> "*" | Div -> "/"
+                     | Eq -> "==" | Neq -> "!=" | Lt -> "<" | Le -> "<="
+                     | Gt -> ">" | Ge -> ">=" | And -> "&&" | Or -> "||")
 
   type unop = Neg | Not
 

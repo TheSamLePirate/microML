@@ -2,6 +2,8 @@ let id x = x
 let passacc _ acc = acc
 let idacc x acc = acc, x
 
+let ( << ) f g x = f (g x)
+
 module StringMap = Map.Make(String)
 
 let zip_opt xs ys =

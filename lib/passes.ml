@@ -33,6 +33,7 @@ end
 module Bindings = Bindings.Make(StringBindings)(IntBindings)
 module Ty = Typer.Make(IntBindings)(StringBindings)(StringBindings)(IntTypesBindings)(StringFields)
 module EvalI = Eval.Make(IntBindings)(StringFields)
+module Backend = AstBackend.Make(IntBindings)(StringFields)(IntBindings)
 
 let parse_file filename =
   let ic = open_in filename in
@@ -56,10 +57,18 @@ let print_pass = {Ast.init = ();
                 }
 (* TODO gérer un genre d'option, gestion des erreurs, avancer petit à petit*)
 let (>|>) ast passe = snd (List.fold_left_map passe.Ast.process passe.Ast.init ast)
-let pipeline filename =
+
+let pipeline_base filename =
   parse_file filename
   >|> Bindings.passe
   >|> Ty.passe
+
+let pipeline_eval filename =
+  pipeline_base filename
   >|> EvalI.passe
   >|> print_pass
+
+let pipeline_llvm filename =
+  pipeline_base filename
+  >|> Backend.passe
 
