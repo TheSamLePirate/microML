@@ -3,11 +3,13 @@ open Lib
 module StringBindings : Ast.Bindings with type t = string = struct
   include String
   module Map = Map.Make(String)
+  module Set = Set.Make(String)
   let pp = Pp.string
 end
 module IntBindings : Ast.FreshableBindings with type t = int = struct
   include Int
   module Map = Map.Make(Int)
+  module Set = Set.Make(Int)
   let pp = Pp.int
   let init = 0
   let next n = n + 1
@@ -15,6 +17,7 @@ end
 module IntTypesBindings : Ast.FreshableBindings with type t = int = struct
   include Int
   module Map = Map.Make(Int)
+  module Set = Set.Make(Int)
   let pp = Ast.Ty.pp_tyvar
   let init = 0
   let next n = n + 1
@@ -22,11 +25,13 @@ end
 module StringFields : Ast.Fields with type t = string = struct
   include String
   module Map = Map.Make(String)
+  module Set = Set.Make(String)
   let pp = Pp.string
 end
 module IntFields : Ast.Fields with type t = int = struct
   include Int
   module Map = Map.Make(Int)
+  module Set = Set.Make(Int)
   let pp = Pp.int
 end
 

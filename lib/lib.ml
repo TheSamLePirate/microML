@@ -160,6 +160,9 @@ module Fix3 (F : Fixable3) = struct
       let acc, x = Surface.foldmap (foldmap f) idacc idacc x acc in
       let acc, tofix = f acc x in
       acc, F( d, tofix)
+    let rec decorate f g (F (d, x)) =
+      let x = Surface.map (decorate f g) id id x in
+      F (f d x, x)
   end
 
   module Traverse = struct
@@ -236,8 +239,11 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
     let rec mapfg f g (F (d, x)) = F (d, SurfaceF.map (mapfg f g) (mapfg_u f g) f g x)
     let rec reduce_u f (G (_, x)) = f (SurfaceG.map (reduce_u f) id id x)
     let rec reduce f g (F (_, x)) = f (SurfaceF.map (reduce f g) (reduce_u g) id id x)
-    let rec map f (F (d, x)) = F( d, f (SurfaceF.map (map f) id id id x))
 
+    let rec reduce_u_d f (G (d, x)) = f d (SurfaceG.map (reduce_u_d f) id id x)
+    let rec reduce_d f g (F (d, x)) = f d (SurfaceF.map (reduce_d f g) (reduce_u_d g) id id x)
+
+    let rec map f (F (d, x)) = F( d, f (SurfaceF.map (map f) id id id x))
     (* map des décorations *)
     let rec decorate_u f (G (d, x)) =
       let x = SurfaceG.map (decorate_u f) id id x in

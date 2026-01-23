@@ -21,7 +21,7 @@ module Fixable = struct
     | MakeClosure of 'fun_id * 'var atom list (* capture atoms -> env *)
   type ('e, 'fun_id, 'var) t =
     | Let of 'var * ('fun_id, 'var) rhs * 'e
-    | LetIf of 'var * 'var atom * 'e * 'e
+    | LetIf of 'var * 'var atom * 'e * 'e * 'e
     | Return of 'var atom
 
 let pp_atom ppvar f = function
@@ -44,8 +44,8 @@ let pp_rhs ppfun ppvar f = function
   | MakeClosure (fu, li) -> Format.fprintf f "clot-make %a (%a)" ppfun fu (pp_list_atom ppvar) li
 
   let pp ppa ppfun ppvar f = function
-      | Let (v, rhs, e) -> Format.fprintf f "@[<v 2>let %a = %a in@\n%a@]" ppvar v (pp_rhs ppfun ppvar) rhs ppa e
-      | LetIf (v, atom, e1, e2) -> Format.fprintf f "let %a = if %a then@\n@[<v 2>  %a@]@\nelse@\n@[<v 2>  %a@]" ppvar v (pp_atom ppvar) atom ppa e1 ppa e2
+      | Let (v, rhs, e) -> Format.fprintf f "@[<v>let %a = %a in@\n%a@]" ppvar v (pp_rhs ppfun ppvar) rhs ppa e
+      | LetIf (v, atom, e1, e2, e3) -> Format.fprintf f "let %a = if %a then@\n@[<v 2>  %a@]@\nelse@\n@[<v 2>  %a@] in@\n%a" ppvar v (pp_atom ppvar) atom ppa e1 ppa e2 ppa e3
       | Return atom -> Format.fprintf f "return %a" (pp_atom ppvar) atom
 
   module Make(F:Applicative) = struct
@@ -70,7 +70,7 @@ let pp_rhs ppfun ppvar f = function
 
     let foldmap f g h = function
       | Let (v, rhs, e) -> ret (fun v rhs e -> Let (v, rhs, e)) <*> h v <*> foldmap_rhs g h rhs <*> f e
-      | LetIf (v, a, e1, e2) -> ret (fun v a e1 e2 -> LetIf (v, a, e1, e2)) <*> h v <*> foldmap_atom h a <*> f e1 <*> f e2
+      | LetIf (v, a, e1, e2, e3) -> ret (fun v a e1 e2 e3 -> LetIf (v, a, e1, e2, e3)) <*> h v <*> foldmap_atom h a <*> f e1 <*> f e2 <*> f e3
       | Return a -> ret (fun a -> Return a) <*> foldmap_atom h a
   end
 
@@ -78,15 +78,15 @@ end
 
 module Fixed = Fix3(Fixable)
 
-type ('fun_id, 'var) func = {
+type ('deco, 'fun_id, 'var) func = {
   id : 'fun_id;
   args : 'var list;
-  body : (unit, 'fun_id, 'var) Fixed.t;
+  body : ('deco, 'fun_id, 'var) Fixed.t;
 }
 
-type ('fun_id, 'var) program = {
-  functions : ('fun_id, 'var) func list;
-  entry : (unit, 'fun_id, 'var) Fixed.t list;
+type ('deco, 'fun_id, 'var) program = {
+  functions : ('deco, 'fun_id, 'var) func list;
+  entry : ('deco, 'fun_id, 'var) Fixed.t list;
 }
 
 
@@ -126,7 +126,9 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
 
   let fix t = Fixed.fix t ()
 
-  let reduce_expr expr env =
+  let makereturn make atom = make (fix (Return atom))
+
+  let reduce_expr used_vars expr env =
     match expr with
     | Ast.Expr.Fixable.Integer i -> env, [], id, Fixable.Int i
     | Ast.Expr.Fixable.Bool i -> env, [], id, Fixable.Bool i
@@ -145,30 +147,67 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
        env, List.append functionsa functionsb, makea << makeb << (fun in_ ->
          Fixable.Let (c, Fixable.Prim2(op, a', b'), in_) |> fix
        ), Fixable.Var c
-    | Ast.Expr.Apply (a, b) ->
-
-    | Ast.Expr.IfThenElse (c, a, b) ->
+    | Ast.Expr.Fixable.Apply (a, b) ->
        let env, functionsa, makea, a' = a env in
        let env, functionsb, makeb, b' = b env in
-       let env, functionsb, makec, c' = c env in
        let env, c = fresh env in
-       env, List.flatten [functionsa; functionsb; functionsc], makea << (fun in_ ->
-         Fixable.Let (c, Fixable.Prim2(op, a', b'), in_) |> fix
+       env, List.append functionsa functionsb, makea << makeb << (fun in_ ->
+         Fixable.Let (c, Fixable.CallClosure(a', [b']), in_) |> fix
        ), Fixable.Var c
-    | Ast.Expr.LetIn (c, a, b) ->
-    | Ast.Expr.LetRecIn (c, a, b) ->
-
-
-    | Ast.Expr.Lambda (c, a) ->
+    | Ast.Expr.Fixable.IfThenElse (a, b, c) ->
+       let env, functionsa, makea, a' = a env in
+       let env, functionsb, makeb, b' = b env in
+       let env, functionsc, makec, c' = c env in
+       let env, v = fresh env in
+       env, List.flatten [functionsa; functionsb; functionsc], makea << (fun in_ ->
+         Fixable.LetIf (v, a', makereturn makeb b', makereturn makec c', in_) |> fix
+       ), Fixable.Var v
+(*
+    | Ast.Expr.Fixable.LetIn (c, a, b) ->
+    | Ast.Expr.Fixable.LetRecIn (c, a, b) -> *)
+    | Ast.Expr.Fixable.Lambda (binding, a) -> (* TODO récupérer plusieurs niveaux *)
+       let env, binding' = bind env binding in
+       let env, functionsa, makea, a' = a env in
+       let env, funid = fresh env in
+       let clot_vars = List.filter_map (fun binding -> B.Map.find_opt binding env.localMap) (B.Set.to_list used_vars) in
+       let clot_vars_atoms = List.map (fun v -> Fixable.Var v) clot_vars in
+       let env, v = fresh env in
+       let funs = {id=funid;
+                   args=List.rev (binding'::clot_vars);
+                   body=makereturn makea a'} in
+       env, List.flatten [functionsa; [funs]], (fun in_ ->
+         Fixable.Let (v, Fixable.MakeClosure (funid, clot_vars_atoms), in_) |> fix), Fixable.Var v
     | _ -> assert false
-  let reduce_pat pat _env = match pat with
+  let reduce_pat _used_vars pat _env = match pat with
     | Ast.Expr.Pattern.Var _v -> assert false
     | Ast.Expr.Pattern.Tuple _li -> assert false
     | Ast.Expr.Pattern.Construct (_f, _p) -> assert false
 
+  (* On capture les variables de l'environement utilisées pour savoir lesquelles capturer *)
+  let decorate_bindings_p _ p =
+    let p = Ast.Expr.Fixed.SurfaceG.map Ast.Expr.Fixed.decoration_u id id p in
+    match p with
+    | Ast.Expr.Pattern.Var v -> B.Set.singleton v
+    | x -> Ast.Expr.Fixed.SurfaceG.fold B.Set.union passacc passacc x B.Set.empty
+
+  let decorate_bindings_e _ e =
+    let e = Ast.Expr.Fixed.SurfaceF.map Ast.Expr.Fixed.decoration Ast.Expr.Fixed.decoration_u id id e in
+    match e with
+    | Ast.Expr.Fixable.Var v -> B.Set.singleton v
+    | Ast.Expr.Fixable.LetIn (v, e1, e2) -> B.Set.union e1 e2 |> B.Set.remove v
+    | Ast.Expr.Fixable.Lambda (v, e) -> B.Set.remove v e
+    | Ast.Expr.Fixable.PatternMatch (a, li) -> B.Set.union a (List.fold_left (fun acc (p, e) -> B.Set.union acc (B.Set.diff e p)) B.Set.empty li)
+    | x -> Ast.Expr.Fixed.SurfaceF.fold B.Set.union passacc passacc passacc x B.Set.empty
+
+  let decorate_bindings e =
+    Ast.Expr.Fixed.Deep.decorate
+      decorate_bindings_e
+      decorate_bindings_p e
+
   let process env expr =
-    let env, functions, makee, atom = Ast.Expr.Fixed.Deep.reduce reduce_expr reduce_pat expr env in
-     env, functions, makee (fix (Return atom))
+    let expr = decorate_bindings expr in
+    let env, functions, makee, atom = Ast.Expr.Fixed.Deep.reduce_d reduce_expr reduce_pat expr env in
+     env, functions, makereturn makee atom
 
   let process env toplvl =
     match toplvl with
