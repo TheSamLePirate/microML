@@ -3,7 +3,7 @@ open Miniml
 
 let () =
   let filename = Sys.argv.(1) in
-  let _ = Passes.pipeline_eval filename in ()
+  let _ = Passes.pipeline_llvm filename in ()
      
   (*
   let ast = Passes.Ty.process ast in

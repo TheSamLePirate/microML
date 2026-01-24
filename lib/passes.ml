@@ -10,7 +10,7 @@ module IntBindings : Ast.FreshableBindings with type t = int = struct
   include Int
   module Map = Map.Make(Int)
   module Set = Set.Make(Int)
-  let pp = Pp.int
+  let pp f i = Format.fprintf f "v%d" i
   let init = 0
   let next n = n + 1
 end
@@ -39,6 +39,7 @@ module Bindings = Bindings.Make(StringBindings)(IntBindings)
 module Ty = Typer.Make(IntBindings)(StringBindings)(StringBindings)(IntTypesBindings)(StringFields)
 module EvalI = Eval.Make(IntBindings)(StringFields)
 module Backend = AstBackend.Make(IntBindings)(StringFields)(IntBindings)
+module CPrinter = BackendCPrinter.Make(IntBindings)
 
 let parse_file filename =
   let ic = open_in filename in
@@ -56,12 +57,14 @@ let parse_file filename =
   close_in ic;
   ast
 
-let print_pass = {Ast.init = ();
+let print_pass pp = {Ast.init = ();
                  Ast.process =
-                   fun () value -> (), Format.printf "%a@\n" EvalI.pp value
+                   fun () value -> Format.printf "%a@\n" pp value; (), value
                 }
+
 (* TODO gérer un genre d'option, gestion des erreurs, avancer petit à petit*)
-let (>|>) ast passe = snd (List.fold_left_map passe.Ast.process passe.Ast.init ast)
+let (>*>) ast passe = List.fold_left_map passe.Ast.process passe.Ast.init ast
+let (>|>) ast passe = snd (ast >*> passe)
 
 let pipeline_base filename =
   parse_file filename
@@ -71,9 +74,16 @@ let pipeline_base filename =
 let pipeline_eval filename =
   pipeline_base filename
   >|> EvalI.passe
-  >|> print_pass
+  >|> print_pass EvalI.pp
 
 let pipeline_llvm filename =
   pipeline_base filename
   >|> Backend.passe
+  >|> print_pass Backend.debug
+  >*> CPrinter.passe
+  |> (fun (main, funs) ->
+    Format.printf "%a@\nint main(){@\n@[<v2>  %a@]@\n}@\n"
+      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
+      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main
+  )
 

@@ -1,0 +1,75 @@
+open AstBackend
+
+module Make(B:Ast.Bindings) = struct
+
+  let pp_atom = Fixable.pp_atom B.pp
+
+  let pp_rhs f = function
+    | Fixable.Atom a -> pp_atom f a
+    | Fixable.Prim1 (op, atm) ->
+       Format.fprintf f
+         (match op with
+          | Neg -> "int_neg(%a)"
+          | Not -> "bool_not(%a)")
+         pp_atom atm
+    | Fixable.Prim2 (op, atm1, atm2) ->
+       Format.fprintf f
+         (match op with
+          | Add -> "int_add(%a, %a)"
+          | Sub -> "int_sub(%a, %a)"
+          | Mul -> "int_mul(%a, %a)"
+          | Div -> "int_div(%a, %a)"
+          | Eq -> "mlv_eq(%a, %a)"
+          | Neq -> "mlv_neq(%a, %a)"
+          | Lt -> "int_lt(%a, %a)"
+          | Le -> "int_le(%a, %a)"
+          | Gt -> "int_gt(%a, %a)"
+          | Ge -> "int_ge(%a, %a)"
+          | And -> "bool_and(%a, %a)" (* pas besoin si on fait la passe pour transformer en if *)
+          | Or -> "bool_or(%a, %a)"
+         )
+         pp_atom atm1
+         pp_atom atm2
+    | Fixable.MakeTuple(atoms) -> Format.fprintf f "make_tuple(%d, %a)" (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.Proj(int, atom) -> Format.fprintf f "record_get(%a, %d)" pp_atom atom int
+    | Fixable.CallDirect(funid, atoms) -> Format.fprintf f "%a(%a)" B.pp funid (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.CallClosure (atom, atoms) -> Format.fprintf f "clot_call(%a, %d, %a)" pp_atom atom (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.MakeClosure (funid, []) -> Format.fprintf f "clot_make(%a, 0)" B.pp funid
+    | Fixable.MakeClosure (funid, atoms) -> Format.fprintf f "clot_make(%a, %d, %a)" B.pp funid (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+
+
+  let pp_t e f letifopt = match e with
+    | Fixable.Let (var, rhs, e) -> Format.fprintf f "%a = %a;@\n%a" B.pp var pp_rhs rhs e letifopt
+    | Fixable.LetIf (var, atom, ethen, eelse, next) ->
+       Format.fprintf f "if (%a){@\n@[<v2>  %a@]@\n}else{@\n@[<v2>  %a@]}@\n%a"
+      pp_atom atom
+      ethen (Some var)
+      eelse (Some var)
+      next letifopt
+    | Fixable.Return atom ->
+       match letifopt with
+       | None -> Format.fprintf f "return %a" pp_atom atom
+       | Some s -> Format.fprintf f "%a = %a" B.pp s pp_atom atom
+
+  let pp_t0 e f opt = Fixed.Deep.reduce pp_t e f opt
+  let pp_t f e = pp_t0 e f None
+
+  let pp_function f func = Format.fprintf f "MLV %a(%a){@\n@[<v 2>  %a@]@\n}@\n" B.pp func.id
+                                 (Lib.Pp.list (Lib.Pp.sep ", ")
+                                    (fun f v -> Format.fprintf f "MLV %a" B.pp v)) func.args
+                         pp_t func.body
+  let pp_entry_decl f (var, _itm) = Format.fprintf f "MLV %a;" B.pp var
+  let pp_entry_init f (var, itm) = pp_t0 itm f (Some var)
+
+  let process env program =
+    let env = (fun f () -> Lib.Pp.list (Lib.Pp.sep "@\n") pp_entry_init f program.entry) :: env in
+    env, fun f () ->
+    Format.fprintf f "%a@\n%a@\n"
+      (Lib.Pp.list (Lib.Pp.sep "@\n") pp_function) program.functions
+      (Lib.Pp.list (Lib.Pp.sep "@\n") pp_entry_decl) program.entry
+
+  let passe = {
+      Ast.init = [];
+      process = process
+  }
+end

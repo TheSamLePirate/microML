@@ -86,7 +86,7 @@ type ('deco, 'fun_id, 'var) func = {
 
 type ('deco, 'fun_id, 'var) program = {
   functions : ('deco, 'fun_id, 'var) func list;
-  entry : ('deco, 'fun_id, 'var) Fixed.t list;
+  entry : ('var * ('deco, 'fun_id, 'var) Fixed.t) list;
 }
 
 
@@ -128,55 +128,73 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
 
   let makereturn make atom = make (fix (Return atom))
 
+  type reduce_result = env * (unit, BT.t, BT.t) func list *
+                    ( (unit, BT.t, BT.t) Fixed.t -> (unit, BT.t, BT.t) Fixed.t ) * BT.t Fixable.atom
+  type reduce_val =
+    | RedRes of reduce_result
+    | RedLambda of BT.t list * (BT.t list -> reduce_result)
+
+  let res a env = match a env with
+    | RedRes (env, funs, make, atom) -> env, funs, make, atom
+    | RedLambda (bindings, fun_) -> fun_ bindings
+
   let reduce_expr used_vars expr env =
     match expr with
-    | Ast.Expr.Fixable.Integer i -> env, [], id, Fixable.Int i
-    | Ast.Expr.Fixable.Bool i -> env, [], id, Fixable.Bool i
-    | Ast.Expr.Fixable.Char c -> env, [], id, Fixable.Char c
-    | Ast.Expr.Fixable.Var v -> env, [], id, b_to_atom v env
+    | Ast.Expr.Fixable.Integer i -> RedRes(env, [], id, Fixable.Int i)
+    | Ast.Expr.Fixable.Bool i -> RedRes(env, [], id, Fixable.Bool i)
+    | Ast.Expr.Fixable.Char c -> RedRes(env, [], id, Fixable.Char c)
+    | Ast.Expr.Fixable.Var v -> RedRes(env, [], id, b_to_atom v env)
     | Ast.Expr.Fixable.UnOp (op, a) ->
-       let env, functionsa, makea, a' = a env in
+       let env, functionsa, makea, a' = res a env in
        let env, c = fresh env in
-       env, functionsa, makea << (fun in_ ->
+       RedRes(env, functionsa, makea << (fun in_ ->
          Fixable.Let (c, Fixable.Prim1(op, a'), in_) |> fix
-       ), Fixable.Var c
+       ), Fixable.Var c)
     | Ast.Expr.Fixable.BinOp (a, op, b) ->
-       let env, functionsa, makea, a' = a env in
-       let env, functionsb, makeb, b' = b env in (* TODO and or shortcut ? générer un if *)
+       let env, functionsa, makea, a' = res a env in
+       let env, functionsb, makeb, b' = res b env in (* TODO and or shortcut ? générer un if *)
        let env, c = fresh env in
-       env, List.append functionsa functionsb, makea << makeb << (fun in_ ->
+       RedRes(env, List.append functionsa functionsb, makea << makeb << (fun in_ ->
          Fixable.Let (c, Fixable.Prim2(op, a', b'), in_) |> fix
-       ), Fixable.Var c
+       ), Fixable.Var c)
     | Ast.Expr.Fixable.Apply (a, b) ->
-       let env, functionsa, makea, a' = a env in
-       let env, functionsb, makeb, b' = b env in
+       let env, functionsa, makea, a' = res a env in
+       let env, functionsb, makeb, b' = res b env in
        let env, c = fresh env in
-       env, List.append functionsa functionsb, makea << makeb << (fun in_ ->
+       RedRes(env, List.append functionsa functionsb, makea << makeb << (fun in_ ->
          Fixable.Let (c, Fixable.CallClosure(a', [b']), in_) |> fix
-       ), Fixable.Var c
+       ), Fixable.Var c)
     | Ast.Expr.Fixable.IfThenElse (a, b, c) ->
-       let env, functionsa, makea, a' = a env in
-       let env, functionsb, makeb, b' = b env in
-       let env, functionsc, makec, c' = c env in
+       let env, functionsa, makea, a' = res a env in
+       let env, functionsb, makeb, b' = res b env in
+       let env, functionsc, makec, c' = res c env in
        let env, v = fresh env in
-       env, List.flatten [functionsa; functionsb; functionsc], makea << (fun in_ ->
+       RedRes(env, List.flatten [functionsa; functionsb; functionsc], makea << (fun in_ ->
          Fixable.LetIf (v, a', makereturn makeb b', makereturn makec c', in_) |> fix
-       ), Fixable.Var v
-(*
-    | Ast.Expr.Fixable.LetIn (c, a, b) ->
-    | Ast.Expr.Fixable.LetRecIn (c, a, b) -> *)
-    | Ast.Expr.Fixable.Lambda (binding, a) -> (* TODO récupérer plusieurs niveaux *)
+       ), Fixable.Var v)
+    | Ast.Expr.Fixable.LetIn (binding, a, b) (* TODO on va avoir un problème de binding ? *)
+    | Ast.Expr.Fixable.LetRecIn (binding, a, b) ->
        let env, binding' = bind env binding in
-       let env, functionsa, makea, a' = a env in
+       let env, functionsa, makea, a' = res a env in
+       let env, functionsb, makeb, b' = res b env in
+       RedRes(env, List.flatten [functionsa; functionsb], makea << (fun in_ ->
+                Fixable.Let (binding', Atom a', makeb in_) |> fix), b')
+    | Ast.Expr.Fixable.Lambda (binding, a) ->
+       let env, binding' = bind env binding in
+       begin match a env with
+       | RedLambda (bindings, fun_) -> RedLambda (binding'::bindings, fun_)
+       | RedRes (env, functionsa, makea, a' ) ->
        let env, funid = fresh env in
        let clot_vars = List.filter_map (fun binding -> B.Map.find_opt binding env.localMap) (B.Set.to_list used_vars) in
        let clot_vars_atoms = List.map (fun v -> Fixable.Var v) clot_vars in
        let env, v = fresh env in
-       let funs = {id=funid;
-                   args=List.rev (binding'::clot_vars);
-                   body=makereturn makea a'} in
-       env, List.flatten [functionsa; [funs]], (fun in_ ->
-         Fixable.Let (v, Fixable.MakeClosure (funid, clot_vars_atoms), in_) |> fix), Fixable.Var v
+       RedLambda ([binding'], (fun bindings ->
+                  let funs = {id=funid;
+                              args=List.append clot_vars bindings;
+                              body=makereturn makea a'} in
+                  env, List.flatten [functionsa; [funs]], (fun in_ ->
+                     Fixable.Let (v, Fixable.MakeClosure (funid, clot_vars_atoms), in_) |> fix), Fixable.Var v))
+       end
     | _ -> assert false
   let reduce_pat _used_vars pat _env = match pat with
     | Ast.Expr.Pattern.Var _v -> assert false
@@ -206,7 +224,7 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
 
   let process env expr =
     let expr = decorate_bindings expr in
-    let env, functions, makee, atom = Ast.Expr.Fixed.Deep.reduce_d reduce_expr reduce_pat expr env in
+    let env, functions, makee, atom = res (Ast.Expr.Fixed.Deep.reduce_d reduce_expr reduce_pat expr) env in
      env, functions, makereturn makee atom
 
   let process env toplvl =
@@ -218,7 +236,7 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
        let env, binding' = bind env binding in
        let env, functions, body = process env body in
        match args with
-       | [] -> env, {functions=functions; entry=[body]}
+       | [] -> env, {functions=functions; entry=[binding', body]}
        | li ->
           let env, li' = List.fold_left_map bind env li in
           env, {functions=List.append functions [{
@@ -231,5 +249,15 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
       Ast.init = empty;
       process = process
   }
+
+  let pp_fun f func = Format.fprintf f "function %a(%a){@\n@[<v2>  %a@]@\n}"
+                        BT.pp func.id
+                        (Lib.Pp.list (Lib.Pp.sep ", ") BT.pp) func.args
+                        (Fixed.pp BT.pp BT.pp) func.body
+
+  let debug f prog =
+     Format.fprintf f "%a@\n%a@\n"
+       (Lib.Pp.list (Lib.Pp.sep "@\n") pp_fun) prog.functions
+       (Lib.Pp.list (Lib.Pp.sep "@\n") (fun f (var, body) -> Format.fprintf f "%a=@\n@[<v2>  %a@]" BT.pp var (Fixed.pp BT.pp BT.pp) body)) prog.entry
 
 end
