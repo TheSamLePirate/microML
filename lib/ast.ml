@@ -180,6 +180,19 @@ module TopLvl = struct
     | TypeDecl of 'tyvar list * 'tybinding * ('deco_t, 'fields, 'tyvar, 'tybinding) Ty.Fixed.t
     | Let of 'binding * ('deco_e, 'fields, 'binding) Expr.Fixed.t
     | LetRec of 'binding * ('deco_e, 'fields, 'binding) Expr.Fixed.t
+
+  let pp pp_field pp_binding pp_tyvar pp_tybinding f = function
+    | TypeDecl (tylist, tybinding, ty) ->
+       Format.fprintf f "type (%a) %a = %a"
+         pp_tybinding tybinding
+         (Lib.Pp.list (Lib.Pp.sep ", ") pp_tyvar) tylist
+         (Ty.Fixed.pp pp_field pp_tyvar pp_tybinding ) ty
+    | Let (binding, expr) ->
+       Format.fprintf f "let %a = %a" pp_binding binding
+         (Expr.Fixed.pp pp_field pp_binding) expr
+    | LetRec (binding, expr) ->
+       Format.fprintf f "let rec %a = %a" pp_binding binding
+         (Expr.Fixed.pp pp_field pp_binding) expr
 end
 
 
