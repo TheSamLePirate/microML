@@ -114,9 +114,13 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
     let args, body = unlambda [] expr in
     List.rev args, body
 
-  let bind env binding =
+  let bind_global env binding =
     let binding' = env.fresh in
-    let env = { env with fresh = BT.next env.fresh; globalMap = B.Map.add binding binding' env. globalMap}
+    let env = { env with fresh = BT.next env.fresh; globalMap = B.Map.add binding binding' env.globalMap}
+    in env, binding'
+  let bind_local env binding =
+    let binding' = env.fresh in
+    let env = { env with fresh = BT.next env.fresh; localMap = B.Map.add binding binding' env.localMap}
     in env, binding'
 
   let fresh env =
@@ -174,26 +178,31 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
        ), Fixable.Var v)
     | Ast.Expr.Fixable.LetIn (binding, a, b) (* TODO on va avoir un problème de binding ? *)
     | Ast.Expr.Fixable.LetRecIn (binding, a, b) ->
-       let env, binding' = bind env binding in
+       let env, binding' = bind_local env binding in
        let env, functionsa, makea, a' = res a env in
        let env, functionsb, makeb, b' = res b env in
        RedRes(env, List.flatten [functionsa; functionsb], makea << (fun in_ ->
                 Fixable.Let (binding', Atom a', makeb in_) |> fix), b')
     | Ast.Expr.Fixable.Lambda (binding, a) ->
-       let env, binding' = bind env binding in
+       let env, binding' = bind_local env binding in
        begin match a env with
        | RedLambda (bindings, fun_) -> RedLambda (binding'::bindings, fun_)
        | RedRes (env, functionsa, makea, a' ) ->
-       let env, funid = fresh env in
-       let clot_vars = List.filter_map (fun binding -> B.Map.find_opt binding env.localMap) (B.Set.to_list used_vars) in
-       let clot_vars_atoms = List.map (fun v -> Fixable.Var v) clot_vars in
-       let env, v = fresh env in
        RedLambda ([binding'], (fun bindings ->
-                  let funs = {id=funid;
-                              args=List.append clot_vars bindings;
-                              body=makereturn makea a'} in
-                  env, List.flatten [functionsa; [funs]], (fun in_ ->
-                     Fixable.Let (v, Fixable.MakeClosure (funid, clot_vars_atoms), in_) |> fix), Fixable.Var v))
+                    let env, funid = fresh env in
+                    let clot_vars = List.filter_map (fun binding ->
+                                        Option.bind
+                                          (B.Map.find_opt binding env.localMap)
+                                          (fun b -> if List.mem b bindings then None else Some b)
+                                      )
+                                      (B.Set.to_list used_vars) in
+                    let clot_vars_atoms = List.map (fun v -> Fixable.Var v) clot_vars in
+                    let env, v = fresh env in
+                    let funs = {id=funid;
+                                args=List.append clot_vars bindings;
+                                body=makereturn makea a'} in
+                    env, List.flatten [functionsa; [funs]], (fun in_ ->
+                      Fixable.Let (v, Fixable.MakeClosure (funid, clot_vars_atoms), in_) |> fix), Fixable.Var v))
        end
     | _ -> assert false
   let reduce_pat _used_vars pat _env = match pat with
@@ -233,12 +242,12 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
     | Ast.TopLvl.Let (binding, expr)
     | Ast.TopLvl.LetRec (binding, expr) ->
        let args, body = unlambda expr in
-       let env, binding' = bind env binding in
+       let env, binding' = bind_global env binding in
        let env, functions, body = process env body in
        match args with
        | [] -> env, {functions=functions; entry=[binding', body]}
        | li ->
-          let env, li' = List.fold_left_map bind env li in
+          let env, li' = List.fold_left_map bind_local env li in
           env, {functions=List.append functions [{
                                            id = binding';
                                            args = li';
