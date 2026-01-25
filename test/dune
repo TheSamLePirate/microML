@@ -1,7 +1,18 @@
+(executable
+ (name run)
+ (flags (:standard -g))
+ (libraries miniml unix))
+
+(rule
+ (alias run)
+ (deps ../runtime/libruntime.a)
+ (action
+  (run %{exe:run.exe} )))
+
 (rule
  (alias runtest)
  (deps
- %{exe:run.exe}
+ {exe:run.exe}  ../runtime/libruntime.a
  (glob_files t*.ml)
  (glob_files t*.expected))
  (targets t01.out t02.out t03.out t04.out)
@@ -26,8 +37,3 @@
 
 
    )))
-
-(executable
- (name run)
- (flags (:standard -g))
- (libraries miniml))

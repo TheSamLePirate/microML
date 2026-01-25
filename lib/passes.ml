@@ -70,32 +70,32 @@ let dump ic =
     done
   with End_of_file -> ()
 
-let clang_pass (main, funs) =
-  let clang_stdout, clang_stdin, clang_stderr =
-    Unix.open_process_args_full
-      "clang"
-       [| "clang";
-          "-x"; "c"; "-";
-          "-x"; "none";
-          "-O0"; "-g";
-          "-I"; "runtime";
-          "-o"; "/tmp/a.out";
-          "_build/default/runtime/libruntime.a";
-       |]
-      (Unix.environment ())
-  in
-  let fmt = Format.formatter_of_out_channel clang_stdin in
-  Format.fprintf fmt "#include \"rt.h\"@\n%a@\nint main(){@\n@[<v2>  %a@]@\n}@\n"
-    (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
-    (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
+let clang_print f (main, funs) =
+    Format.fprintf f "#include \"rt.h\"@\n@\n%a@\nint main(){@\n@[<v2>  %a@]@\n}@\n"
+      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
+      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
+    (main, funs)
+
+let clang_pass prog =
+  let argv =  [| "clang"; "-v"; "-x"; "c"; "-"; "-x"; "none"; "-O0"; "-g"; "-I"; "runtime"; "-o"; "/tmp/a.out";  "_build/default/runtime/libruntime.a" |] in
+  let stdin_r, clang_stdin = Unix.pipe () in
+  (* Empêche clang d’hériter de stdin_w (sinon EOF peut ne jamais arriver) *)
+  Unix.set_close_on_exec clang_stdin;
+  let pid = Unix.create_process "clang" argv stdin_r  Unix.stdout  Unix.stderr in
+  Unix.close stdin_r;
+  let oc = Unix.out_channel_of_descr clang_stdin in
+  let fmt = Format.formatter_of_out_channel oc in
+
+  ignore (clang_print fmt prog);
   Format.pp_print_flush fmt ();
-  close_out clang_stdin;
-  dump clang_stderr;
-  dump clang_stdout;
-  match Unix.close_process (clang_stdout, clang_stdin) with
+  Format.pp_print_flush fmt ();
+  flush oc;
+  close_out oc;
+  Printf.printf "OK\n";
+  Format.pp_print_flush Format.std_formatter ();
+ match snd (Unix.waitpid [] pid) with
   | Unix.WEXITED 0 -> ()
   | _ -> failwith "clang failed"
-
 
 (* TODO gérer un genre d'option, gestion des erreurs, avancer petit à petit*)
 let (>*>) ast passe = List.fold_left_map passe.Ast.process passe.Ast.init ast
@@ -113,13 +113,9 @@ let pipeline_eval filename =
 
 let pipeline_llvm filename =
   pipeline_base filename
+  >|> print_pass (Bindings.debug Lib.Pp.string Lib.Pp.int Lib.Pp.string)
   >|> Backend.passe
   >|> print_pass Backend.debug
   >*> CPrinter.passe
-  |> (fun (main, funs) ->
-    Format.printf "%a@\nint main(){@\n@[<v2>  %a@]@\n}@\n"
-      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
-      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
-    (main, funs)
-  )
+  |> clang_print Format.std_formatter
  |> clang_pass

@@ -36,25 +36,34 @@ struct MLV copy(struct MLV a){
   return b;
 }
 
-struct MLV clot_call(struct MLV a, struct MLV b) {
+struct MLV clot_call(struct MLV a, int n, ...) {
   struct MLV cpy = copy(a);
-  // TODO
+  va_list ap;
+  va_start(ap, n);
+  for (int i = 0; i < n; i++) {
+    cpy.ptr[cpy.value ++] = va_arg(ap, MLV);
+    if (cpy.value == cpy.size){
+      // TODO faire l'appel.
+    }
+  }
+  va_end(ap);
   return cpy;
 }
 
-struct MLV make_clot(void* funptr, int arr) {
+struct MLV clot_make(void* funptr, int arr, int n, ...) {
+  va_list ap;
+  va_start(ap, n);
+
   struct MLV out;
   out.funptr = funptr;
   out.size = arr;
   out.ptr = alloc(arr);
-  out.value = 0;
+  out.value = n;
+  for (int i = 0; i < n; i++) {
+    out.ptr[i] = va_arg(ap, MLV);
+  }
+  va_end(ap);
   return out;
-}
-void clot_fill(struct MLV *clot, int nth, struct MLV obj){
-  clot->ptr[nth] = obj;
-}
-void clot_set_filled(struct MLV *clot, int v){
-  clot->value = v;
 }
 
 struct MLV construct(int field, struct MLV v){
@@ -62,11 +71,13 @@ struct MLV construct(int field, struct MLV v){
   out.ptr = alloc(1);
   out.value = field;
   out.ptr[0] = v;
+  return out;
 }
 struct MLV record(int nfields){
   struct MLV out;
   out.ptr = alloc(nfields * 2);
   out.size = nfields;
+  return out;
 }
 void record_fill(struct MLV record, int indice, int field, struct MLV v){
   record.ptr[indice * 2].value = field;

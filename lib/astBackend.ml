@@ -18,7 +18,7 @@ module Fixable = struct
     | Proj of int * 'var atom
     | CallDirect of 'fun_id * 'var atom list
     | CallClosure of 'var atom * 'var atom list
-    | MakeClosure of 'fun_id * 'var atom list (* capture atoms -> env *)
+    | MakeClosure of 'fun_id * int * 'var atom list
   type ('e, 'fun_id, 'var) t =
     | Let of 'var * ('fun_id, 'var) rhs * 'e
     | LetIf of 'var * 'var atom * 'e * 'e * 'e
@@ -41,7 +41,7 @@ let pp_rhs ppfun ppvar f = function
   | Proj (i, a) -> Format.fprintf f "(%a).(%d)" (pp_atom ppvar) a i
   | CallDirect (fu, args) -> Format.fprintf f "call %a (%a)" ppfun fu (pp_list_atom ppvar) args
   | CallClosure (fu, args) -> Format.fprintf f "clot-call %a (%a)" (pp_atom ppvar) fu (pp_list_atom ppvar) args
-  | MakeClosure (fu, li) -> Format.fprintf f "clot-make %a (%a)" ppfun fu (pp_list_atom ppvar) li
+  | MakeClosure (fu, i, li) -> Format.fprintf f "clot-make %a %d (%a)" ppfun fu i (pp_list_atom ppvar) li
 
   let pp ppa ppfun ppvar f = function
       | Let (v, rhs, e) -> Format.fprintf f "@[<v>let %a = %a in@\n%a@]" ppvar v (pp_rhs ppfun ppvar) rhs ppa e
@@ -66,7 +66,7 @@ let pp_rhs ppfun ppvar f = function
       | Proj (i, a) -> ret (fun a -> Proj(i, a)) <*> foldmap_atom h a
       | CallDirect (funid, li) -> ret (fun funid li -> CallDirect (funid, li)) <*> g funid <*> fold_left_map (foldmap_atom h) li
       | CallClosure (a, li) -> ret (fun a li -> CallClosure (a, li)) <*> foldmap_atom h a <*> fold_left_map (foldmap_atom h) li
-      | MakeClosure (funid, li) -> ret (fun funid li -> MakeClosure (funid, li)) <*> g funid <*> fold_left_map (foldmap_atom h) li
+      | MakeClosure (funid, i, li) -> ret (fun funid li -> MakeClosure (funid, i, li)) <*> g funid <*> fold_left_map (foldmap_atom h) li
 
     let foldmap f g h = function
       | Let (v, rhs, e) -> ret (fun v rhs e -> Let (v, rhs, e)) <*> h v <*> foldmap_rhs g h rhs <*> f e
@@ -96,8 +96,9 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
       fresh : BT.t;
       globalMap : BT.t B.Map.t;
       localMap : BT.t B.Map.t;
+      arity :int  BT.Map.t
   }
-  let empty = {fresh = BT.init; globalMap = B.Map.empty; localMap = B.Map.empty }
+  let empty = {fresh = BT.init; globalMap = B.Map.empty; localMap = B.Map.empty; arity = BT.Map.empty }
 
   let b_to_atom b env =
     match B.Map.find_opt b env.localMap with
@@ -198,11 +199,14 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
                                       (B.Set.to_list used_vars) in
                     let clot_vars_atoms = List.map (fun v -> Fixable.Var v) clot_vars in
                     let env, v = fresh env in
+                    let args = List.append clot_vars bindings in
                     let funs = {id=funid;
-                                args=List.append clot_vars bindings;
+                                args=args;
                                 body=makereturn makea a'} in
+                    let arity = List.length args in
+                    let env = {env with arity = BT.Map.add funid arity env.arity} in
                     env, List.flatten [functionsa; [funs]], (fun in_ ->
-                      Fixable.Let (v, Fixable.MakeClosure (funid, clot_vars_atoms), in_) |> fix), Fixable.Var v))
+                      Fixable.Let (v, Fixable.MakeClosure (funid, arity, clot_vars_atoms), in_) |> fix), Fixable.Var v))
        end
     | _ -> assert false
   let reduce_pat _used_vars pat _env = match pat with
@@ -248,6 +252,7 @@ module Make(B:Ast.Bindings)(F:Ast.Fields)(BT:Ast.FreshableBindings) = struct
        | [] -> env, {functions=functions; entry=[binding', body]}
        | li ->
           let env, li' = List.fold_left_map bind_local env li in
+          let env = {env with arity = BT.Map.add binding' (List.length li') env.arity} in
           env, {functions=List.append functions [{
                                            id = binding';
                                            args = li';

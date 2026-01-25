@@ -2,7 +2,12 @@ open AstBackend
 
 module Make(B:Ast.Bindings) = struct
 
-  let pp_atom = Fixable.pp_atom B.pp
+  let pp_atom f = function
+    | Fixable.GlobalVar v | Var v -> B.pp f v
+    | Fixable.Int i -> Format.fprintf f "make_int(%d)" i
+    | Fixable.Char c -> Format.fprintf f "make_char(%c)" c
+    | Fixable.Bool b -> Format.fprintf f "make_bool(%b)" b
+    | Fixable.Unit -> Format.fprintf f "make_unit()"
 
   let pp_rhs f = function
     | Fixable.Atom a -> pp_atom f a
@@ -34,8 +39,8 @@ module Make(B:Ast.Bindings) = struct
     | Fixable.Proj(int, atom) -> Format.fprintf f "record_get(%a, %d)" pp_atom atom int
     | Fixable.CallDirect(funid, atoms) -> Format.fprintf f "%a(%a)" B.pp funid (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
     | Fixable.CallClosure (atom, atoms) -> Format.fprintf f "clot_call(%a, %d, %a)" pp_atom atom (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
-    | Fixable.MakeClosure (funid, []) -> Format.fprintf f "clot_make(%a, 0)" B.pp funid
-    | Fixable.MakeClosure (funid, atoms) -> Format.fprintf f "clot_make(%a, %d, %a)" B.pp funid (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.MakeClosure (funid, arity, []) -> Format.fprintf f "clot_make(%a, %d, 0)" B.pp funid arity
+    | Fixable.MakeClosure (funid, arity, atoms) -> Format.fprintf f "clot_make(%a, %d, %d, %a)" B.pp funid arity (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
 
 
   let pp_t e f letifopt = match e with
@@ -70,7 +75,7 @@ module Make(B:Ast.Bindings) = struct
       (Lib.Pp.list (Lib.Pp.sep "@\n") pp_entry_decl) program.entry
 
   let passe = {
-      Ast.init = [];
+      Ast.init = [ ];
       process = process
   }
 end
