@@ -39,17 +39,18 @@ module Make(B:Ast.Bindings) = struct
 
 
   let pp_t e f letifopt = match e with
-    | Fixable.Let (var, rhs, e) -> Format.fprintf f "%a = %a;@\n%a" B.pp var pp_rhs rhs e letifopt
+    | Fixable.Let (var, rhs, e) -> Format.fprintf f "MLV %a = %a;@\n%a" B.pp var pp_rhs rhs e letifopt
     | Fixable.LetIf (var, atom, ethen, eelse, next) ->
-       Format.fprintf f "if (%a){@\n@[<v2>  %a@]@\n}else{@\n@[<v2>  %a@]}@\n%a"
-      pp_atom atom
-      ethen (Some var)
-      eelse (Some var)
-      next letifopt
+       Format.fprintf f "MLV %a@\nif (%a){@\n@[<v2>  %a@]@\n}else{@\n@[<v2>  %a@]}@\n%a"
+         B.pp var
+         pp_atom atom
+         ethen (Some var)
+         eelse (Some var)
+         next letifopt
     | Fixable.Return atom ->
        match letifopt with
-       | None -> Format.fprintf f "return %a" pp_atom atom
-       | Some s -> Format.fprintf f "%a = %a" B.pp s pp_atom atom
+       | None -> Format.fprintf f "return %a;" pp_atom atom
+       | Some s -> Format.fprintf f "%a = %a;" B.pp s pp_atom atom
 
   let pp_t0 e f opt = Fixed.Deep.reduce pp_t e f opt
   let pp_t f e = pp_t0 e f None

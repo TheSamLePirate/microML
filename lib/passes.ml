@@ -62,6 +62,41 @@ let print_pass pp = {Ast.init = ();
                    fun () value -> Format.printf "%a@\n" pp value; (), value
                 }
 
+let dump ic =
+  try
+    while true do
+      let line = input_line ic in
+      print_endline line
+    done
+  with End_of_file -> ()
+
+let clang_pass (main, funs) =
+  let clang_stdout, clang_stdin, clang_stderr =
+    Unix.open_process_args_full
+      "clang"
+       [| "clang";
+          "-x"; "c"; "-";
+          "-x"; "none";
+          "-O0"; "-g";
+          "-I"; "runtime";
+          "-o"; "/tmp/a.out";
+          "_build/default/runtime/libruntime.a";
+       |]
+      (Unix.environment ())
+  in
+  let fmt = Format.formatter_of_out_channel clang_stdin in
+  Format.fprintf fmt "#include \"rt.h\"@\n%a@\nint main(){@\n@[<v2>  %a@]@\n}@\n"
+    (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
+    (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
+  Format.pp_print_flush fmt ();
+  close_out clang_stdin;
+  dump clang_stderr;
+  dump clang_stdout;
+  match Unix.close_process (clang_stdout, clang_stdin) with
+  | Unix.WEXITED 0 -> ()
+  | _ -> failwith "clang failed"
+
+
 (* TODO gérer un genre d'option, gestion des erreurs, avancer petit à petit*)
 let (>*>) ast passe = List.fold_left_map passe.Ast.process passe.Ast.init ast
 let (>|>) ast passe = snd (ast >*> passe)
@@ -84,6 +119,7 @@ let pipeline_llvm filename =
   |> (fun (main, funs) ->
     Format.printf "%a@\nint main(){@\n@[<v2>  %a@]@\n}@\n"
       (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
-      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main
+      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
+    (main, funs)
   )
-
+ |> clang_pass

@@ -1,7 +1,7 @@
 (library
  (name miniml)
   (flags (:standard -g))
- (libraries menhirLib))
+ (libraries menhirLib unix))
 
 (menhir
  (modules parser)

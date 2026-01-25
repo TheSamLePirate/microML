@@ -1,5 +1,11 @@
 (rule
- (targets runtime.o)
- (deps runtime.c runtime.h)
+ (targets rt.o)
+ (deps rt.c rt.h)
  (action
-  (run clang -c runtime.c -o runtime.o)))
+  (run clang -c -O0 -g -I . -o %{targets} %{dep:rt.c})))
+
+(rule
+ (targets libruntime.a)
+ (deps rt.o)
+ (action
+  (run ar rcs %{targets} %{dep:rt.o})))
