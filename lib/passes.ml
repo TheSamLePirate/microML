@@ -28,16 +28,19 @@ module StringFields : Ast.Fields with type t = string = struct
   module Set = Set.Make(String)
   let pp = Pp.string
 end
-module IntFields : Ast.Fields with type t = int = struct
+module IntFields : Ast.FreshableFields with type t = int = struct
   include Int
   module Map = Map.Make(Int)
   module Set = Set.Make(Int)
   let pp = Pp.int
+  let init = 0
+  let next n = n + 1
 end
 
 module Bindings = Bindings.Make(StringBindings)(IntBindings)
+module Fields = Fields.Make(StringFields)(IntFields)
 module Ty = Typer.Make(IntBindings)(StringBindings)(StringBindings)(IntTypesBindings)(StringFields)
-module EvalI = Eval.Make(IntBindings)(StringFields)
+module EvalI = Eval.Make(IntBindings)(IntFields)
 module Backend = AstBackend.Make(IntBindings)(StringFields)(IntBindings)
 module CPrinter = BackendCPrinter.Make(IntBindings)
 
@@ -105,6 +108,7 @@ let pipeline_base filename =
   parse_file filename
   >|> Bindings.passe
   >|> Ty.passe
+  >|> Fields.passe
 
 let pipeline_eval filename =
   pipeline_base filename
@@ -113,7 +117,7 @@ let pipeline_eval filename =
 
 let pipeline_llvm filename =
   pipeline_base filename
-  >|> print_pass (Bindings.debug Lib.Pp.string Lib.Pp.int Lib.Pp.string)
+  >|> print_pass (Bindings.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)
   >|> Backend.passe
   >|> print_pass Backend.debug
   >*> CPrinter.passe

@@ -215,7 +215,11 @@ module type Fields = sig
   val pp : Format.formatter -> t -> unit
   val equal : t -> t -> bool
 end
-
+module type FreshableFields = sig
+  include Fields
+  val init : t
+  val next : t -> t
+end
 module type FreshableBindings = sig
   include Bindings
   val init : t
