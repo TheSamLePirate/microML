@@ -1,5 +1,9 @@
 # MINI OCAML
 
+Pour ceux qui ne connaissent pas ocaml, il faut installer opam, le configurer, installer dune, menhir, et coté IDE, j'ai codé sous emacs avec merlin.
+
+Le projet permet de parser, typer, évaluer, compiler un micro-caml très simple. C'est inspiré du projet étudant d'un ami, mais son projet à lui restait très primitif. Je suis donc parti sur un micro-caml qui permet du polymorphisme, des types sommes, du pattern matching, avec un backend llvm.
+
 dossiers :
 - bin/main.ml (* fichier d'entrée qui parse les arguments *)
 - runtime/rt.c (* code C de la runtime *)
@@ -42,3 +46,7 @@ Les Fix3, Fix4 et FixMut génèrent des sous modules : Surface, Deep, Traverse, 
 les types fixés ont un décorateur, ce qui permet d'accrocher une information (type, bindingMap, etc...) à chaque noeud.
 
 Ces trois functors permettent de n'avoir quasiment rien à écrire pour chaque AST (on a un AST de type, de patterns, d'expressions, et de backend bas niveau) : on écrit un pretty printer (avec le module Format) et une méthode de parcours en surface par une Applicative, et c'est tout. Ensuite, ces functors génèrent les mêmes méthodes de parcours pour chaque AST. Grosse factorisation de code.
+
+Les modules Fix permettent d'ajouter un polymorphisme supplémentaire à chaque noeud, c'est ce qu'on nomme une décoration. Le parseur produit un AST décoré par des locations (les positions dans les fichiers) ensuite, cette décoration change : le typeur permet de la transformer en location * type. Ainsi chaque expression est reliée à un type. L'alternative à cette solution est d'avoir un int qui se colle à chaque noeud, et une intmap produite par le typer. Le problème avec cette méthode c'est qu'on perd les garanties : on est plus certain qu'un type est sur une expression. Par contre on gagne en souplesse, on peut créer des noeuds sans les typer, ou réordonner des passes. Mais le typage pour moi est une garantie importante.
+
+Grâce à ce module, la plupart des passes de compilation sont soit des traverse, soit des reduce, soit des foldmap. Fixed.Deep est toujours utilisé pour lancer une réécriture.
