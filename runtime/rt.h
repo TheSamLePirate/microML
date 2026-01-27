@@ -12,6 +12,9 @@ struct MLV {
 struct MLV clot_call(struct MLV a, int n, ...);
 struct MLV clot_make(void* funptr, int arr, int n, ...);
 
+struct MLV construct(int f, struct MLV a);
+struct MLV destruct(struct MLV a);
+int is_constructed(int f, struct MLV a);
 
 struct MLV make_int(int i);
 struct MLV int_add(struct MLV a, struct MLV b);

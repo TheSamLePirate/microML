@@ -43,7 +43,7 @@ struct MLV clot_call(struct MLV a, int n, ...) {
   for (int i = 0; i < n; i++) {
     cpy.ptr[cpy.value ++] = va_arg(ap, MLV);
     if (cpy.value == cpy.size){
-      // TODO faire l'appel.
+      cpy = cpy.funptr(cpy);
     }
   }
   va_end(ap);
@@ -73,7 +73,15 @@ struct MLV construct(int field, struct MLV v){
   out.ptr[0] = v;
   return out;
 }
-struct MLV record(int nfields){
+
+struct MLV destruct(struct MLV a){
+  return a.ptr[0];
+}
+int is_constructed(int f, struct MLV a){
+  return a.value;
+}
+
+struct MLV record(int nfields){ // TODO ...
   struct MLV out;
   out.ptr = alloc(nfields * 2);
   out.size = nfields;

@@ -20,12 +20,14 @@ module Pp = struct
   let int f i = Format.fprintf f "%d" i
   let string f s = Format.fprintf f "%S" s
   let prefix s p f x = Format.fprintf f "%s%a" s p x
-  let list sep pp f li =
-    let rec print f = function
+  let listi sep pp f li =
+    let rec print i f = function
       | [] -> ()
-      | [hd] -> pp f hd
-      | hd::((_::_2) as tl) -> Format.fprintf f "%a%a%a" pp hd sep () print tl
-    in print f li
+      | [hd] -> pp f i hd
+      | hd::((_::_2) as tl) ->
+         Format.fprintf f "%a%a%a" (fun f hd -> pp f i hd) hd sep () (print (i+1)) tl
+    in print 0 f li
+  let list sep pp f li = listi sep (fun f _i v -> pp f v) f li
   let failwith fmt = Format.kasprintf failwith fmt
   let assoc ppa ppb f li =
     Format.fprintf f "{ @[<v>%a@]}"

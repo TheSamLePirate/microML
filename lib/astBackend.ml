@@ -14,6 +14,7 @@ module Fixable = struct
     | Atom of 'var atom
     | Prim1 of Ast.Expr.unop * 'var atom
     | Prim2 of Ast.Expr.binop * 'var atom * 'var atom
+    | Construct of int * 'var atom
     | MakeTuple of 'var atom list
     | Proj of int * 'var atom
     | CallDirect of 'fun_id * 'var atom list
@@ -22,6 +23,7 @@ module Fixable = struct
   type ('e, 'fun_id, 'var) t =
     | Let of 'var * ('fun_id, 'var) rhs * 'e
     | LetIf of 'var * 'var atom * 'e * 'e * 'e
+    | LetIfTag of 'var * 'var atom * int * 'e * 'e * 'e
     | Return of 'var atom
 
 let pp_atom ppvar f = function
@@ -37,6 +39,7 @@ let pp_rhs ppfun ppvar f = function
   | Atom v -> pp_atom ppvar f v
   | Prim2 (op, a1, a2) -> Format.fprintf f "%a %a %a" (pp_atom ppvar) a1 Ast.Expr.ppop op (pp_atom ppvar) a2
   | Prim1 (op, a) -> Format.fprintf f "%a %a"  Ast.Expr.ppunop op (pp_atom ppvar) a
+  | Construct (i, e) -> Format.fprintf f "construct-%d %a" i (pp_atom ppvar) e
   | MakeTuple (li) -> Format.fprintf f "(%a)" (pp_list_atom ppvar) li
   | Proj (i, a) -> Format.fprintf f "(%a).(%d)" (pp_atom ppvar) a i
   | CallDirect (fu, args) -> Format.fprintf f "call %a (%a)" ppfun fu (pp_list_atom ppvar) args
@@ -46,6 +49,7 @@ let pp_rhs ppfun ppvar f = function
   let pp ppa ppfun ppvar f = function
       | Let (v, rhs, e) -> Format.fprintf f "@[<v>let %a = %a in@\n%a@]" ppvar v (pp_rhs ppfun ppvar) rhs ppa e
       | LetIf (v, atom, e1, e2, e3) -> Format.fprintf f "let %a = if %a then@\n@[<v 2>  %a@]@\nelse@\n@[<v 2>  %a@] in@\n%a" ppvar v (pp_atom ppvar) atom ppa e1 ppa e2 ppa e3
+      | LetIfTag (v, atom, i, e1, e2, e3) -> Format.fprintf f "let %a = if constructed-%d %a then@\n@[<v 2>  %a@]@\nelse@\n@[<v 2>  %a@] in@\n%a" ppvar v i (pp_atom ppvar) atom ppa e1 ppa e2 ppa e3
       | Return atom -> Format.fprintf f "return %a" (pp_atom ppvar) atom
 
   module Make(F:Applicative) = struct
@@ -62,6 +66,7 @@ let pp_rhs ppfun ppvar f = function
       | Atom v -> ret (fun v -> Atom v) <*> foldmap_atom h v
       | Prim2 (op, a1, a2) -> ret (fun a1 a2 -> Prim2 (op, a1, a2)) <*> foldmap_atom h a1 <*> foldmap_atom h a2
       | Prim1 (op, a) -> ret (fun a -> Prim1 (op, a)) <*> foldmap_atom h a
+      | Construct (i, e) -> ret (fun e -> Construct (i, e)) <*> foldmap_atom h e
       | MakeTuple li -> ret (fun li -> MakeTuple li) <*> fold_left_map (foldmap_atom h) li
       | Proj (i, a) -> ret (fun a -> Proj(i, a)) <*> foldmap_atom h a
       | CallDirect (funid, li) -> ret (fun funid li -> CallDirect (funid, li)) <*> g funid <*> fold_left_map (foldmap_atom h) li
@@ -71,6 +76,7 @@ let pp_rhs ppfun ppvar f = function
     let foldmap f g h = function
       | Let (v, rhs, e) -> ret (fun v rhs e -> Let (v, rhs, e)) <*> h v <*> foldmap_rhs g h rhs <*> f e
       | LetIf (v, a, e1, e2, e3) -> ret (fun v a e1 e2 e3 -> LetIf (v, a, e1, e2, e3)) <*> h v <*> foldmap_atom h a <*> f e1 <*> f e2 <*> f e3
+      | LetIfTag (v, a, i, e1, e2, e3) -> ret (fun v a e1 e2 e3 -> LetIfTag (v, a, i, e1, e2, e3)) <*> h v <*> foldmap_atom h a <*> f e1 <*> f e2 <*> f e3
       | Return a -> ret (fun a -> Return a) <*> foldmap_atom h a
   end
 
