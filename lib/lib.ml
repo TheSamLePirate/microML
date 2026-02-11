@@ -3,6 +3,7 @@ let passacc _ acc = acc
 let idacc x acc = acc, x
 
 let ( << ) f g x = f (g x)
+let ( >> ) g f x = f (g x)
 
 module StringMap = Map.Make(String)
 
@@ -14,6 +15,15 @@ let zip_opt xs ys =
     | _ -> None
   in
   aux [] xs ys
+
+let group_by (li : ('a * 'b) list) : ('a * 'b list) list =
+  let rec f groups = function
+    | (k, v) :: tl ->
+       let samek, others = List.partition (fun (k2, _v) -> k2 = k) tl in
+       let values = List.map snd samek in
+       f ((k, (v::values))::groups) others
+    | [] -> List.rev groups
+  in f [] li
 
 module Pp = struct
   let sep format f () = Format.fprintf f format
@@ -76,8 +86,10 @@ end
 
 module ListApp (A:Applicative) = struct
   open A
+  let foldmap_snd f (i, j) = ret (fun j -> i, j) <*> f j
   let fold_left_map f l = List.fold_right (fun x xs -> ret List.cons <*> f x <*> xs) l (ret [])
   let fold_left_map_couple f g l = List.fold_right (fun (a, b) xs -> ret List.cons <*> (ret (fun a b -> a, b) <*> f a <*> g b ) <*> xs) l (ret [])
+  let fold_left_map_snd f l = fold_left_map (foldmap_snd f) l
 end
 
 module type Fixable3 = sig

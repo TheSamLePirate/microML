@@ -41,7 +41,7 @@ module Bindings = Bindings.Make(StringBindings)(IntBindings)
 module Fields = Fields.Make(StringFields)(IntFields)
 module Ty = Typer.Make(IntBindings)(StringBindings)(StringBindings)(IntTypesBindings)(StringFields)
 module EvalI = Eval.Make(IntBindings)(IntFields)
-module Backend = AstBackend.Make(IntBindings)(StringFields)(IntBindings)
+module Backend = AstBackend.Make(IntBindings)(IntBindings)
 module CPrinter = BackendCPrinter.Make(IntBindings)
 
 let parse_file filename =
@@ -61,9 +61,7 @@ let parse_file filename =
   ast
 
 let print_pass pp = {Ast.init = ();
-                 Ast.process =
-                   fun () value -> Format.printf "%a@\n" pp value; (), value
-                }
+                     Ast.process = fun () value -> Format.printf "%a@\n" pp value; (), value }
 
 let dump ic =
   try

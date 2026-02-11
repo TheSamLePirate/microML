@@ -50,3 +50,8 @@ Ces trois functors permettent de n'avoir quasiment rien à écrire pour chaque A
 Les modules Fix permettent d'ajouter un polymorphisme supplémentaire à chaque noeud, c'est ce qu'on nomme une décoration. Le parseur produit un AST décoré par des locations (les positions dans les fichiers) ensuite, cette décoration change : le typeur permet de la transformer en location * type. Ainsi chaque expression est reliée à un type. L'alternative à cette solution est d'avoir un int qui se colle à chaque noeud, et une intmap produite par le typer. Le problème avec cette méthode c'est qu'on perd les garanties : on est plus certain qu'un type est sur une expression. Par contre on gagne en souplesse, on peut créer des noeuds sans les typer, ou réordonner des passes. Mais le typage pour moi est une garantie importante.
 
 Grâce à ce module, la plupart des passes de compilation sont soit des traverse, soit des reduce, soit des foldmap. Fixed.Deep est toujours utilisé pour lancer une réécriture.
+
+TODO
+patterns :
+ - vérification de patterns inutiles
+ - vérification de patterns non exhaustifs
