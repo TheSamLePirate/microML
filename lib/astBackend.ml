@@ -160,37 +160,80 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | RedLambda (bindings, fun_) -> fun_ bindings
 
   (* TODO pattern matching optimisation *)
-  let groupPatterns v_in li =
-    let rec groups_fields groups = function
-      | (Ast.Expr.Pattern.Construct (field, p), e)::tl ->
-         groups_fields ((field, (p, e))::groups) tl
-      | [(Ast.Expr.Pattern.Var v), e] -> groups, Some (v, e)
-      | ((Ast.Expr.Pattern.Var _v), _e)::_tl -> assert false (* TODO message d'erreur *)
-      | ((Ast.Expr.Pattern.Tuple _li), _e) :: _tl -> assert false (* TODO message d'erreur *)
-      | [] -> groups, None
+  let groupPatterns env v_in li =
+    let find_tuple mat =
+      List.find_map (fun cols ->
+          List.fold_left (fun (col, opt) pat ->
+              match opt, pat with
+              | Some _, _ -> col, opt
+              | None, Some Ast.Expr.Pattern.Tuple li -> col + 1, Some (col, List.length li)
+              | None, _ -> col + 1, None
+            ) (0, None) cols |> snd
+          ) mat in
+    let pat_to_len pat len = match pat with
+      | None -> List.map (fun _ -> None) (0 -- len)
+      | Some Ast.Expr.Pattern.Tuple li -> List.map (fun i -> Some (Ast.Expr.Fixed.unfix_u i)) li
+      | Some Ast.Expr.Pattern.Var v -> List.map (fun _ -> None) (0 -- len) (* TODO noter le binding *)
+      | Some Ast.Expr.Pattern.Construct (_, _) -> assert false
     in
-    let groups_fields li =
-      let groups, _else_opt = groups_fields [] li in
-      let _groups = Lib.group_by groups
-      in assert false
-    in
-    let rec groups_tuple patterns = function
-      | [Ast.Expr.Pattern.Var v, e] -> patterns, Some (v, e)
-      | ((Ast.Expr.Pattern.Var _v), _e)::_tl -> assert false (* TODO message d'erreur *)
-      | (Ast.Expr.Pattern.Construct (_c, _p), _e) :: _tl -> assert false (* TODO *)
-      | (Ast.Expr.Pattern.Tuple li, e) :: tl -> groups_tuple ((li, e)::patterns) tl
-      | [] -> patterns, None
-    in
-    let groups_tuple patterns =
-      let _groups, _else_opt = groups_tuple [] patterns
-      in assert false
-    in match li with
-       | [Ast.Expr.Pattern.Var v, e] ->
-          Fixable.Let (v, v_in, e)
-       | ((Ast.Expr.Pattern.Tuple _li, _e) :: _tl) as li -> groups_tuple li
-       | ((Ast.Expr.Pattern.Construct (_c, _p), _e) :: _tl) as li -> groups_fields li
-       | (Ast.Expr.Pattern.Var _v, _e)::_tl -> assert false (** TODO message d'erreur : _tl ne sert à rien *)
-       | [] -> assert false
+    let rec untuple env decl vins mat =
+      match find_tuple mat with
+      | None -> env, decl, vins, mat
+      | Some (col, len) ->
+         let (env, decl, _), vins =
+           List.fold_left_map (fun (env, decl, i) vin ->
+               if i = col then
+                 let env, decl, vins' =
+                   List.fold_left (fun (env, decl, vins') i ->
+                       let env, binding = fresh env in
+                       let decl in' = Fixed.fix (Fixable.Let (binding, Fixable.Nth (i, vin), decl in')) () in
+                       (env, decl, (Fixable.GlobalVar binding)::vins')) (env, decl, []) (0 -- len)
+                 in (env, decl, i+1), vins'
+               else (env, decl, i+1), [vin]
+             ) (env, decl, 0) vins
+         in
+         let vins = List.flatten vins in
+         let mat = List.map (fun line ->
+                       List.fold_left_map (fun i pat ->
+                           if i = col then
+                             i+1, pat_to_len pat len
+                           else i+1, [pat]) 0 line |> snd) mat
+         in let mat = List.map List.flatten mat
+         in untuple env decl vins mat in
+    let pat_tag = function
+      | Ast.Expr.Pattern.Construct (c, _) -> c
+      | _ -> assert false in
+    let discr_col mat = match mat with
+      | [] -> assert false
+      | hd::_tl -> let cols = List.mapi (fun i _ -> i, List.map (fun l -> List.nth l i) mat) hd in
+                   let cols = List.map (fun (nth, col) -> (* calcul d'un score par colone *)
+                                  let col = List.filter_map Lib.id col in
+                                  let col = List.map pat_tag col in (* que les tags *)
+                                  let col = Lib.group_count (Int.compare) col in
+                                  let counts = List.map snd col in
+                                  let tags = List.map fst col in (* les tags de patterns *)
+                                  let score = List.fold_left (fun acc col -> acc * (col + 1)) 1 counts in
+                                  nth, score, tags) cols in
+                   let cols = List.sort (fun (_, a, _) (_, b, _) -> b - a) cols in
+                   List.hd cols in
+    let unpat_col vins mat tag = assert false in
+    let selected_lines mat vins field = assert false in
+    let pat_failed = Fixed.fix Fixable.AssertFalse () in
+    let rec compile env vins mat =
+      let env, decl, vins, mat = untuple env Lib.id vins mat in
+      match discr_col mat with
+      | col, _, fields ->
+         let vin: BT.t Fixable.atom = List.nth vins col in
+         let env, tests = List.fold_left (fun (env, nok) field ->
+                         let env, binding_out = fresh env in
+                         let ret =  Fixed.fix (Fixable.Return (Fixable.GlobalVar binding_out)) () in
+                         let vins, mat = selected_lines mat vins field in
+                         let env, ok = compile env vins mat in
+                         env, Fixed.fix (Fixable.LetIfTag(binding_out, vin, field, ok, nok, ret)) ()
+                       ) (env, pat_failed) fields
+         in env, decl tests in
+    let vins, mat = [v_in], List.map (fun p -> [Some p]) li
+    in compile env vins mat
 
   let reduce_expr used_vars expr env =
     match expr with
@@ -287,7 +330,6 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
        let env, functions, make, e = res e env in
        assert false
 
-  let reduce_pat _used_vars pat = pat
 
 (*  let reduce_pat used_vars pat = Ast.Expr.Fixed.fix_u pat used_vars *)
 
@@ -314,7 +356,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
 
   let process env expr =
     let expr = decorate_bindings expr in
-    let env, functions, makee, atom = res (Ast.Expr.Fixed.Deep.reduce_d reduce_expr reduce_pat expr) env in
+    let env, functions, makee, atom = res (Ast.Expr.Fixed.Deep.reduce_de reduce_expr expr) env in
      env, functions, makereturn makee atom
 
   let process env toplvl =

@@ -5,6 +5,9 @@ let idacc x acc = acc, x
 let ( << ) f g x = f (g x)
 let ( >> ) g f x = f (g x)
 
+let (--) a b = Seq.init (b - a) (fun x -> x + a) |> List.of_seq
+
+
 module StringMap = Map.Make(String)
 
 let zip_opt xs ys =
@@ -24,6 +27,16 @@ let group_by (li : ('a * 'b) list) : ('a * 'b list) list =
        f ((k, (v::values))::groups) others
     | [] -> List.rev groups
   in f [] li
+
+let group_count cmp li =
+  let rec f acc curr cnt = function
+    | [] -> (curr, cnt)::acc
+    | hd::tl -> if 0 = cmp hd curr then f acc curr (cnt + 1) tl
+                else f ((curr, cnt)::acc) hd 1 tl
+  in match List.sort cmp li with
+     | hd::tl -> f [] hd 1 tl
+     | [] -> []
+
 
 module Pp = struct
   let sep format f () = Format.fprintf f format
@@ -264,6 +277,9 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
 
     let rec reduce_u_d f (G (d, x)) = f d (SurfaceG.map (reduce_u_d f) id id x)
     let rec reduce_d f g (F (d, x)) = f d (SurfaceF.map (reduce_d f g) (reduce_u_d g) id id x)
+
+
+    let rec reduce_de f (F (d, x)) = f d (SurfaceF.map (reduce_de f) id id id x)
 
 
     let rec foldmapfg_u f g (G (d, x)) acc =
