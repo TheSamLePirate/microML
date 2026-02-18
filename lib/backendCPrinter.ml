@@ -36,7 +36,10 @@ module Make(B:Ast.Bindings) = struct
          pp_atom atm1
          pp_atom atm2
     | Fixable.Construct (d, atom) -> Format.fprintf f "construct(%d, %a)" d pp_atom atom
+    | Fixable.Destruct (d, atom) -> Format.fprintf f "destruct(%d, %a)" d pp_atom atom
     | Fixable.MakeTuple(atoms) -> Format.fprintf f "make_tuple(%d, %a)" (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.Nth (i, atom) -> Format.fprintf f "tuple_nth(%d, %a)" i pp_atom atom
+    | Fixable.MakeRecord(li) -> Format.fprintf f "make_record(%d, %a)" (List.length li) (Lib.Pp.list (Lib.Pp.sep ",@ ") (fun f (field, atom) -> Format.fprintf f "%d, %a" field pp_atom atom)) li
     | Fixable.Proj(int, atom) -> Format.fprintf f "record_get(%a, %d)" pp_atom atom int
     | Fixable.CallDirect(funid, atoms) -> Format.fprintf f "%a(%a)" B.pp funid (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
     | Fixable.CallClosure (atom, atoms) -> Format.fprintf f "clot_call(%a, %d, %a)" pp_atom atom (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
@@ -60,6 +63,7 @@ module Make(B:Ast.Bindings) = struct
          ethen (Some var)
          eelse (Some var)
          next letifopt
+    | Fixable.AssertFalse -> Format.fprintf f "assert(0);"
     | Fixable.Return atom ->
        match letifopt with
        | None -> Format.fprintf f "return %a;" pp_atom atom

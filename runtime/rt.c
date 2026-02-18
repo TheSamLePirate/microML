@@ -74,7 +74,7 @@ struct MLV construct(int field, struct MLV v){
   return out;
 }
 
-struct MLV destruct(struct MLV a){
+struct MLV destruct(int field, struct MLV a){
   return a.ptr[0];
 }
 int is_constructed(int f, struct MLV a){

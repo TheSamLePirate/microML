@@ -16,6 +16,9 @@ struct MLV construct(int f, struct MLV a);
 struct MLV destruct(struct MLV a);
 int is_constructed(int f, struct MLV a);
 
+struct MLV tuple_nth(int i, struct MLV a);
+struct MLV make_tuple(int i, ...);
+
 struct MLV make_int(int i);
 struct MLV int_add(struct MLV a, struct MLV b);
 struct MLV int_sub(struct MLV a, struct MLV b);

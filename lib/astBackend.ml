@@ -44,6 +44,7 @@ let pp_rhs ppfun ppvar f = function
   | Prim2 (op, a1, a2) -> Format.fprintf f "%a %a %a" (pp_atom ppvar) a1 Ast.Expr.ppop op (pp_atom ppvar) a2
   | Prim1 (op, a) -> Format.fprintf f "%a %a"  Ast.Expr.ppunop op (pp_atom ppvar) a
   | Construct (i, e) -> Format.fprintf f "construct-%d %a" i (pp_atom ppvar) e
+  | Destruct (i, e) -> Format.fprintf f "destruct-%d %a" i (pp_atom ppvar) e
   | MakeTuple (li) -> Format.fprintf f "(%a)" (pp_list_atom ppvar) li
   | MakeRecord (li) -> Format.fprintf f "{%a}" (Pp.list
                                                   (Pp.sep "; ") (fun f (i, atom) ->
@@ -75,6 +76,7 @@ let pp_rhs ppfun ppvar f = function
       | Prim2 (op, a1, a2) -> ret (fun a1 a2 -> Prim2 (op, a1, a2)) <*> foldmap_atom h a1 <*> foldmap_atom h a2
       | Prim1 (op, a) -> ret (fun a -> Prim1 (op, a)) <*> foldmap_atom h a
       | Construct (i, e) -> ret (fun e -> Construct (i, e)) <*> foldmap_atom h e
+      | Destruct (i, e) -> ret (fun e -> Destruct (i, e)) <*> foldmap_atom h e
       | MakeTuple li -> ret (fun li -> MakeTuple li) <*> fold_left_map (foldmap_atom h) li
       | Nth (i, a) -> ret (fun a -> Nth(i, a)) <*> foldmap_atom h a
       | MakeRecord li -> ret (fun li -> MakeRecord li) <*> fold_left_map_snd (foldmap_atom h) li
