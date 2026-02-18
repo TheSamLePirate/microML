@@ -162,7 +162,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
 
   (* TODO pattern matching optimisation *)
   let group_patterns env v_in li =
-    let _, fakevar = fresh env in (* variable jamais utilisée *)
+    let fakevar = Fixable.Unit in (* variable jamais utilisée *)
     let find_tuple mat =
       List.find_map (fun (cols, _) ->
           List.fold_left (fun (col, opt) pat ->
@@ -247,7 +247,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
           | None -> Some (line, e)
         ) mat in
     let pat_failed = Fixed.fix Fixable.AssertFalse () in
-    let ret binding_out =  Fixed.fix (Fixable.Return (Fixable.Var binding_out)) () in
+    let ret binding_out =  Fixed.fix (Fixable.Return binding_out) () in
     let rec compile env vins mat =
       let env, decl, vins, mat = untuple env Lib.id vins mat in
       match discr_col mat with
@@ -263,7 +263,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                          let env, decl_ok, vins, mat = selected_lines env mat vins col field in
                          let env, binding_out_ok, make = compile env vins mat in
                          let ok = decl_ok (make (ret binding_out_ok)) in
-                         env, (binding_out, fun in' nok -> Fixed.fix (Fixable.LetIfTag(binding_out, vin, field, ok, nok, in')) ())) env fields
+                         env, ((Fixable.Var binding_out), fun in' nok -> Fixed.fix (Fixable.LetIfTag(binding_out, vin, field, ok, nok, in')) ())) env fields
          in match tests with
             | (binding0, make0)::tl ->
                let mat_else = else_lines mat col in
@@ -377,7 +377,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
        let functions = List.flatten functions in
        let env, binding, make' = group_patterns env e li_code in
        let make in' = make (make' in') in
-       RedRes(env, functions, make, Fixable.Var binding)
+       RedRes(env, functions, make, binding)
 
 
 (*  let reduce_pat used_vars pat = Ast.Expr.Fixed.fix_u pat used_vars *)
