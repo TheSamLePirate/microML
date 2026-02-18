@@ -172,16 +172,20 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
               | None, _ -> col + 1, None
             ) (0, None) cols |> snd
           ) mat in
-    let pat_to_len pat len = match pat with
-      | None -> List.map (fun _ -> None) (0 -- len)
-      | Some Ast.Expr.Pattern.Tuple li -> List.map (fun i -> Some (Ast.Expr.Fixed.unfix_u i)) li
-      | Some Ast.Expr.Pattern.Var v -> List.map (fun _ -> None) (0 -- len) (* TODO noter le binding *)
+    let pat_to_len (make, e) env vin pat len = match pat with
+      | None -> env, (make, e), List.map (fun _ -> None) (0 -- len)
+      | Some Ast.Expr.Pattern.Tuple li -> env, (make, e), List.map (fun i -> Some (Ast.Expr.Fixed.unfix_u i)) li
+      | Some Ast.Expr.Pattern.Var binding ->
+         let env, binding' = bind_local env binding in (* ça génère un letin inutile qu'on devra corriger à l'inline *)
+         let make in' = Fixed.fix (Fixable.Let (binding', Fixable.Atom vin, make in')) () in
+         env, (make, e), List.map (fun _ -> None) (0 -- len) (* TODO noter le binding *)
       | Some Ast.Expr.Pattern.Construct (_, _) -> assert false
     in
     let rec untuple env decl vins mat =
       match find_tuple mat with
       | None -> env, decl, vins, mat
       | Some (col, len) ->
+         let vin = List.nth vins col in (* pour les patVar *)
          let (env, decl, _), vins =
            List.fold_left_map (fun (env, decl, i) vin ->
                if i = col then
@@ -189,17 +193,19 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                    List.fold_left (fun (env, decl, vins') i ->
                        let env, binding = fresh env in
                        let decl in' = Fixed.fix (Fixable.Let (binding, Fixable.Nth (i, vin), decl in')) () in
-                       (env, decl, (Fixable.GlobalVar binding)::vins')) (env, decl, []) (0 -- len)
+                       (env, decl, (Fixable.Var binding)::vins')) (env, decl, []) (0 -- len)
                  in (env, decl, i+1), vins'
                else (env, decl, i+1), [vin]
              ) (env, decl, 0) vins
          in
          let vins = List.flatten vins in
-         let mat = List.map (fun (line, aux) ->
-                       List.fold_left_map (fun i pat ->
-                           if i = col then
-                             i+1, pat_to_len pat len
-                           else i+1, [pat]) 0 line |> snd, aux) mat
+         let env, mat = List.fold_left_map (fun env (line, aux) ->
+                       let (_, aux, env), line = List.fold_left_map (fun (i, aux, env) pat ->
+                                                if i = col then
+                                                  let env, aux, pat = pat_to_len aux env vin pat len in
+                                                  (i+1, aux, env), pat
+                                                else (i+1, aux, env), [pat]) (0, aux, env) line
+                       in env, (line, aux)) env mat
          in let mat = List.map (fun (line, aux) -> List.flatten line, aux) mat
          in untuple env decl vins mat in
     let pat_tag = function
