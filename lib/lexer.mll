@@ -17,6 +17,7 @@ let kw = function
   | "else" -> ELSE
   | "type"  -> TYPE
   | "of"    -> OF
+  | "external" -> EXTERNAL
   | _ -> raise Not_found
 
 let char_of_escape = function
@@ -80,6 +81,8 @@ rule token = parse
     CHAR c
   }
 | "'" ([^'\\'] as c) "'" { CHAR c }
+
+| '"' ([^ '"' ]* as s) '"' { STRING s }
 
 | tyvar as s { TYVAR s }
 

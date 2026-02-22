@@ -38,12 +38,13 @@ let mk_ty_app loc atoms =
 
 %token TYPE OF
 %token <string> TYVAR   /* ex: "'a", "'b" */
+%token <string> STRING
 
 %token <string> LIDENT   /* variables, labels record */
 %token <string> UIDENT   /* constructeurs */
 
 %token LET REC IN FUN MATCH WITH
-%token IF THEN ELSE
+%token IF THEN ELSE EXTERNAL
 %token LPAREN RPAREN LBRACE RBRACE
 %token COMMA SEMI COLON
 %token BAR ARROW
@@ -83,6 +84,11 @@ decl:
 | type_decl { $1 }
 | let_decl  { $1 }
 | letrec_decl { $1 }
+| extern_decl  { $1 }
+
+extern_decl:
+| EXTERNAL f=LIDENT COLON t=ty_rhs EQ s=STRING
+    { Ast.TopLvl.External (f, t, s) }
 
 let_decl:
 | LET b=LIDENT EQ ex=expr { Ast.TopLvl.Let (b, ex) }

@@ -72,7 +72,7 @@ let dump ic =
   with End_of_file -> ()
 
 let clang_print f (main, funs) =
-    Format.fprintf f "#include \"rt.h\"@\n@\n%a@\nint main(){@\n@[<v2>  %a@]@\n}@\n"
+    Format.fprintf f "#include <include/rt.h>@\n@\n%a@\nint main(){@\n@[<v2>  runtime_init();@\n%a@]@\n}@\n"
       (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
       (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
     (main, funs)

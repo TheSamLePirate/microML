@@ -1,6 +1,6 @@
 (rule
  (targets rt.o)
- (deps rt.c rt.h)
+ (deps rt.c include/rt.h)
  (action
   (run clang -c -O0 -g -I . -o %{targets} %{dep:rt.c})))
 

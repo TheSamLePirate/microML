@@ -321,7 +321,7 @@ end = struct
                                    let map = BTyVar.Map.add ty fresh map in
                                    (map, BT.next fresh), fresh
                             ) (BTyVar.Map.empty, BT.init) tylist in
-       let ty = Ty.Fixed.Deep.mapfg Lib.id (fun v -> BTyVar.Map.find v map) Lib.id ty in
+       let ty = Ty.Fixed.Deep.mapfg Lib.id (fun v -> BTyVar.Map.find v map) Lib.id ty in (* TODO erreur sur les types non bindés *)
        let env = { env with ty_named = BTyNamed.Map.add binding (tylist', ty) env.ty_named }
        in env, TypeDecl (tylist', binding, ty)
     | Let (binding, expr) ->
@@ -338,7 +338,11 @@ end = struct
        let tc = apply_ty env tc in
        let expr = Expr.Fixed.fix (Expr.Fixed.unfix expr) (loc, tc) in
        env, LetRec(binding, expr)
-
+    | External (binding, ty, s) ->
+       let map = BTyVar.Map.empty in (* TODO peut-être un forall ? *)
+       let ty = Ty.Fixed.Deep.mapfg Lib.id (fun v -> BTyVar.Map.find v map) Lib.id ty in
+       let env = insert_poly env binding ty in
+       env, External (binding, ty, s)
   let passe = {
       Ast.init = empty;
       process = process

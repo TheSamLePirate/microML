@@ -28,6 +28,9 @@ module Make(B:Fields)(BTarget:Ast.FreshableFields) = struct
     | LetRec( binding, expr) ->
        let acc, expr = Expr.Fixed.Deep.foldmapfg process idacc expr acc in
        acc, LetRec(binding, expr)
+    | External (binding, ty, s) ->
+       let acc, ty = Ty.Fixed.Deep.foldmapfgh process idacc idacc ty acc in
+       acc, External (binding, ty, s)
 
   let passe = {
       Ast.init = B.Map.empty, BTarget.init;

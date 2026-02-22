@@ -117,8 +117,8 @@ let rec uncell f = function
   let compile env toplvl =
     let open Ast.TopLvl in
     match toplvl with
-    | TypeDecl (_, _, _) -> env, Tuple []
-    | Let (binding, expr) | LetRec( binding, expr) ->
+    | External (_, _, _) | TypeDecl (_, _, _) -> env, Tuple []
+    | Let (binding, expr) | LetRec( binding, expr) -> (* TODO letrec ? *)
        let value = compile expr env in
        let env = BindingsMap.add binding value env in env, value
 

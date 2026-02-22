@@ -3,6 +3,7 @@ open AstBackend
 module Make(B:Ast.Bindings) = struct
 
   let pp_atom f = function
+    | Fixable.Native n -> Format.fprintf f "%s" n
     | Fixable.GlobalVar v | Var v -> B.pp f v
     | Fixable.Int i -> Format.fprintf f "make_int(%d)" i
     | Fixable.Char c -> Format.fprintf f "make_char(%c)" c

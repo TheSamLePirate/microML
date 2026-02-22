@@ -80,6 +80,9 @@ end = struct
        let ibinding, acc' = stringmap_add acc binding in
        let acc', expr = process expr acc' in
        acc', LetRec(ibinding, expr)
+    | External (binding, ty, str) ->
+       let binding', acc = stringmap_add acc binding in
+       acc, External (binding', ty, str)
 
   let passe = {
       Ast.init = B.Map.empty, BTarget.init;

@@ -180,6 +180,7 @@ module TopLvl = struct
     | TypeDecl of 'tyvar list * 'tybinding * ('deco_t, 'fields, 'tyvar, 'tybinding) Ty.Fixed.t
     | Let of 'binding * ('deco_e, 'fields, 'binding) Expr.Fixed.t
     | LetRec of 'binding * ('deco_e, 'fields, 'binding) Expr.Fixed.t
+    | External of 'binding * ('deco_t, 'fields, 'tyvar, 'tybinding) Ty.Fixed.t * string
 
   let pp pp_field pp_binding pp_tyvar pp_tybinding f = function
     | TypeDecl (tylist, tybinding, ty) ->
@@ -193,6 +194,10 @@ module TopLvl = struct
     | LetRec (binding, expr) ->
        Format.fprintf f "let rec %a = %a" pp_binding binding
          (Expr.Fixed.pp pp_field pp_binding) expr
+    | External (binding, ty, str) ->
+       Format.fprintf f "external let %a : %a = %S" pp_binding binding
+         (Ty.Fixed.pp pp_field pp_tyvar pp_tybinding ) ty
+         str
 end
 
 

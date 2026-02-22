@@ -4,6 +4,7 @@ module Fixable = struct
 
   type 'var atom =
     | GlobalVar of 'var
+    | Native of string
     | Var of 'var
     | Int of int
     | Char of char
@@ -31,6 +32,7 @@ module Fixable = struct
     | AssertFalse
 
 let pp_atom ppvar f = function
+  | Native v -> Format.fprintf f "native %s" v
   | GlobalVar v -> Format.fprintf f "global %a" ppvar v
   | Var v -> ppvar f v
   | Int i -> Format.fprintf f "%d" i
@@ -65,6 +67,7 @@ let pp_rhs ppfun ppvar f = function
     open F
     include ListApp(F)
     let foldmap_atom h = function
+      | Native v -> ret (Native v)
       | GlobalVar v -> ret (fun v -> GlobalVar v) <*> h v
       | Var v -> ret (fun v -> Var v) <*> h v
       | Int i -> ret (Int i)
@@ -112,17 +115,21 @@ type ('deco, 'fun_id, 'var) program = {
 module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
 
   type env = {
+      natives : string B.Map.t;
       fresh : BT.t;
       globalMap : BT.t B.Map.t;
       localMap : BT.t B.Map.t;
       arity :int  BT.Map.t
   }
-  let empty = {fresh = BT.init; globalMap = B.Map.empty; localMap = B.Map.empty; arity = BT.Map.empty }
+  let empty = {natives = B.Map.empty; fresh = BT.init; globalMap = B.Map.empty; localMap = B.Map.empty; arity = BT.Map.empty }
 
   let b_to_atom b env =
     match B.Map.find_opt b env.localMap with
     | Some s -> Fixable.Var s
-    | None -> Fixable.GlobalVar (B.Map.find b env.globalMap)
+    | None ->
+       match B.Map.find_opt b env.natives with
+       | Some s -> Fixable.Native s
+       | None -> Fixable.GlobalVar (B.Map.find b env.globalMap)
 
   let rec unlambda acc expr =
     match Ast.Expr.Fixed.unfix expr with
@@ -418,6 +425,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
 
   let process env toplvl =
     match toplvl with
+    | Ast.TopLvl.External (binding, _ty, s) -> {env with natives = B.Map.add binding s env.natives}, {functions=[]; entry=[]}
     | Ast.TopLvl.TypeDecl (_tylist, _binding, _ty) -> env, {functions=[]; entry=[]}
     | Ast.TopLvl.Let (binding, expr)
     | Ast.TopLvl.LetRec (binding, expr) ->

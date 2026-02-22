@@ -1,4 +1,4 @@
-#include "rt.h"
+#include "include/rt.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
@@ -49,6 +49,7 @@ struct MLV clot_call(struct MLV a, int n, ...) {
   va_end(ap);
   return cpy;
 }
+
 
 struct MLV clot_make(void* funptr, int arr, int n, ...) {
   va_list ap;
@@ -137,4 +138,13 @@ struct MLV int_div(struct MLV a, struct MLV b){
   return out;
 }
 
+MLV prim_print_int(MLV m){
+  printf("%d", m.ptr[0].value);
+  return m;
+}
+
+MLV prim_print_int_clot;
+void runtime_init(){
+  prim_print_int_clot = clot_make(prim_print_int, 1, 0);
+}
 
