@@ -27,10 +27,19 @@ build runtime :
 ```
 dune build runtime/libruntime.a
 ```
-compilation d'un test :
+tests :
 ```
-OCAMLRUNPARAM=b dune exec ./test/run.exe -- test/t02.ml
+dune runtest
 ```
+test spécifique :
+```
+dune runtest test/main.t
+```
+Usage :
+```
+OCAMLRUNPARAM=b dune exec -- bin/main.exe test/t02.ml
+```
+
 
 ## Lib
 module Pp : utilitaires pour les Printers

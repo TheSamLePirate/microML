@@ -9,3 +9,7 @@
  (deps rt.o)
  (action
   (run ar rcs %{targets} %{dep:rt.o})))
+
+(alias
+ (name default)
+ (deps libruntime.a))

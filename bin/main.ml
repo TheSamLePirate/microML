@@ -1,7 +1,8 @@
 open Miniml
 
 let file = ref None
-let specs = [ ("-o", Arg.String (fun s -> print_endline s), "output file") ]
+let output_file = ref "a.out"
+let specs = [ ("-o", Arg.String (fun s -> output_file := s), "output file") ]
 let anon s =
   match !file with
   | None -> file := Some s
@@ -14,4 +15,4 @@ let () =
     | Some f -> f
     | None -> raise (Arg.Bad "missing input file")
   in
-  ignore (Passes.pipeline filename)
+  ignore (Passes.pipeline_llvm filename !output_file)
