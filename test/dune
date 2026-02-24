@@ -1,2 +1,6 @@
 (cram
- (deps ../bin/main.exe t01.ml))
+ (deps
+   (source_tree ../runtime/include)
+   ../runtime/libruntime.a
+   ../bin/main.exe
+   t01.ml t02.ml))

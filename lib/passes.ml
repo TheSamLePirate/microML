@@ -72,13 +72,13 @@ let dump ic =
   with End_of_file -> ()
 
 let clang_print f (main, funs) =
-    Format.fprintf f "#include <include/rt.h>@\n@\n%a@\nint main(){@\n@[<v2>  runtime_init();@\n%a@]@\n}@\n"
+    Format.fprintf f "#include <rt.h>@\n@\n%a@\nint main(){@\n@[<v2>  runtime_init();@\n%a@]@\n}@\n"
       (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
       (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
     (main, funs)
 
-let clang_pass output_file prog =
-  let argv =  [| "clang"; "-v"; "-x"; "c"; "-"; "-x"; "none"; "-O0"; "-g"; "-I"; "runtime"; "-o"; output_file;  "_build/default/runtime/libruntime.a" |] in
+let clang_pass output_file runtime_file runtime_header_dir prog =
+  let argv =  [| "clang"; "-v"; "-x"; "c"; "-"; "-x"; "none"; "-O0"; "-g"; "-I"; runtime_header_dir; "-o"; output_file;  runtime_file |] in
   let stdin_r, clang_stdin = Unix.pipe () in
   (* Empêche clang d’hériter de stdin_w (sinon EOF peut ne jamais arriver) *)
   Unix.set_close_on_exec clang_stdin;
@@ -113,11 +113,11 @@ let pipeline_eval filename =
   >|> EvalI.passe
   >|> print_pass EvalI.pp
 
-let pipeline_llvm filename output_file =
+let pipeline_llvm filename output_file runtime_file runtime_header_dir =
   pipeline_base filename
   >|> print_pass (Bindings.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)
   >|> Backend.passe
   >|> print_pass Backend.debug
   >*> CPrinter.passe
   |> clang_print Format.std_formatter
- |> (clang_pass output_file)
+  |> clang_pass output_file runtime_file runtime_header_dir
