@@ -129,7 +129,10 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | None ->
        match B.Map.find_opt b env.natives with
        | Some s -> Fixable.Native s
-       | None -> Fixable.GlobalVar (B.Map.find b env.globalMap)
+       | None ->
+          match B.Map.find_opt b env.globalMap with
+          | Some s -> Fixable.GlobalVar s
+          | None -> Lib.Pp.failwith "binding failed : %a" B.pp b
 
   let rec unlambda acc expr =
     match Ast.Expr.Fixed.unfix expr with
@@ -169,7 +172,15 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | RedRes (env, funs, make, atom) -> env, funs, make, atom
     | RedLambda (bindings, fun_) -> fun_ bindings
 
-  (* TODO pattern matching optimisation *)
+  let print_mat f mat =
+    Lib.Pp.list (Lib.Pp.sep "@\n") (fun f (li, _addon) ->
+        Lib.Pp.list (Lib.Pp.sep " ") (fun f x -> match x with
+                                                 | None -> Format.fprintf f " _ "
+                                                 | Some Ast.Expr.Pattern.Tuple _li -> Format.fprintf f "(...) "
+                                                 | Some Ast.Expr.Pattern.Var binding -> Format.fprintf f "v%a" B.pp binding
+                                                 | Some Ast.Expr.Pattern.Construct (a, _) -> Format.fprintf f "C%d(...)" a
+      ) f li ) f mat
+
   let group_patterns env v_in li =
     let fakevar = Fixable.Unit in (* variable jamais utilisée *)
     let find_tuple mat =
@@ -181,18 +192,23 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
               | None, _ -> col + 1, None
             ) (0, None) cols |> snd
           ) mat in
-    let pat_to_len (make, e) env vin pat len = match pat with
-      | None -> env, (make, e), List.map (fun _ -> None) (0 -- len)
-      | Some Ast.Expr.Pattern.Tuple li -> env, (make, e), List.map (fun i -> Some (Ast.Expr.Fixed.unfix_u i)) li
+    let unpatvar env vin (bind, e) binding =
+      let env, binding' = bind_local env binding in (* ça génère un letin inutile qu'on devra corriger à l'inline *)
+      let bind' in' = bind (Fixed.fix (Fixable.Let (binding', Fixable.Atom vin, in')) ()) in
+      env, (bind', e)
+    in
+    let pat_to_len (bind, e) env vin pat len = match pat with
+      | None -> env, (bind, e), List.map (fun _ -> None) (0 -- len)
+      | Some Ast.Expr.Pattern.Tuple li -> env, (bind, e), List.map (fun i -> Some (Ast.Expr.Fixed.unfix_u i)) li
       | Some Ast.Expr.Pattern.Var binding ->
-         let env, binding' = bind_local env binding in (* ça génère un letin inutile qu'on devra corriger à l'inline *)
-         let make in' = Fixed.fix (Fixable.Let (binding', Fixable.Atom vin, make in')) () in
-         env, (make, e), List.map (fun _ -> None) (0 -- len) (* TODO noter le binding *)
+         let env, (bind, e) = unpatvar env vin (bind, e) binding in
+         env, (bind, e), List.map (fun _ -> None) (0 -- len)
       | Some Ast.Expr.Pattern.Construct (_, _) -> assert false
     in
     let rec untuple env decl vins mat =
+      Format.printf "untuple : @[%a@]@\n" print_mat mat;
       match find_tuple mat with
-      | None -> env, decl, vins, mat
+      | None -> env, decl, vins, mat (* TODO final unvar *)
       | Some (col, len) ->
          let vin = List.nth vins col in (* pour les patVar *)
          let (env, decl, _), vins =
@@ -242,16 +258,22 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
       let vin = List.nth vins col in
       let make in' = Fixed.fix (Fixable.Let (binding, (Fixable.Destruct (field, vin)), in')) () in
       let vins = List.mapi (fun i v -> if i = col then Fixable.Var binding else v) vins in
-      let mat = List.filter_map (fun (line, e) ->
+      let vin' = List.nth vins col in (* le binding de la nouvelle colone après accès au contenu du constructeur *)
+      let env, mat = List.fold_left_map (fun env (line, (bind, e)) ->
                     match List.nth line col with
                     | Some (Ast.Expr.Pattern.Var _)
                     | Some (Ast.Expr.Pattern.Tuple _) -> assert false (* sont gérés par untuple *)
                     | Some (Ast.Expr.Pattern.Construct (field', p)) ->
                             if field = field' then
-                              Some (List.mapi (fun i p' -> if i = col then Some (Ast.Expr.Fixed.unfix_u p) else p') line, e)
-                            else None
-                    | None -> Some (line, e)
-                  ) mat in
+                              match Ast.Expr.Fixed.unfix_u p with
+                              | Ast.Expr.Pattern.Var binding ->
+                                 let env, (bind, e) = unpatvar env vin' (bind, e) binding in
+                                 env, Some (List.mapi (fun i p' -> if i = col then None else p') line, (bind, e))
+                              | pat -> env, Some (List.mapi (fun i p' -> if i = col then Some pat else p') line, (bind, e))
+                            else env, None
+                    | None -> env, Some (line, (bind, e))
+                  ) env mat in
+      let mat = List.filter_map Fun.id mat in
       env, make, vins, mat in
     let else_lines mat col = (* même fonction, mais pour les cas ou aucune ligne n'a matché les champs *)
       List.filter_map (fun (line, e) ->
@@ -267,29 +289,33 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
       let env, decl, vins, mat = untuple env Lib.id vins mat in
       match discr_col mat with
       | None -> begin match mat with (* TODO ajouter déclarations *)
-                  | [] -> env, fakevar, (fun _in' -> pat_failed)
-                  | [(_hd, (make, e))] -> env, e, make
-                  | (_hd, (make, e))::_tl -> env, e, make (* TODO warn *)
+                  | [] -> env, [], fakevar, (fun _in' -> pat_failed)
+                  | [(_hd, (bind, e))] ->
+                     let env, functions, make, e = res e env in
+                     env, functions, e, bind << make
+                  | (_hd, (bind, e))::_tl ->
+                     let env, functions, make, e = res e env in
+                     env, functions, e, bind << make (* TODO warn *)
                 end
       | Some (col, _, fields) ->
          let vin: BT.t Fixable.atom = List.nth vins col in
-         let env, tests = List.fold_left_map (fun env field ->
+         let (env, functions), tests = List.fold_left_map (fun (env, functions') field ->
                          let env, binding_out = fresh env in
                          let env, decl_ok, vins, mat = selected_lines env mat vins col field in
-                         let env, binding_out_ok, make = compile env vins mat in
+                         let env, functions, binding_out_ok, make = compile env vins mat in
+                         let functions = List.rev_append functions functions' in
                          let ok = decl_ok (make (ret binding_out_ok)) in
-                         env, ((Fixable.Var binding_out), fun in' nok -> Fixed.fix (Fixable.LetIfTag(binding_out, vin, field, ok, nok, in')) ())) env fields
+                         (env, functions), ((Fixable.Var binding_out), fun in' nok -> Fixed.fix (Fixable.LetIfTag(binding_out, vin, field, ok, nok, in')) ())) (env, []) fields
          in match tests with
             | (binding0, make0)::tl ->
                let mat_else = else_lines mat col in
-               let env, binding_else, make_else = compile env vins mat_else in
+               let env, functions', binding_else, make_else = compile env vins mat_else in
                let nok = List.fold_left (fun nok (binding_out, make) ->
                              make (ret binding_out) nok) (make_else (ret binding_else)) tl in
-               env, binding0, fun in' -> decl (make0 in' nok)
+               env, List.rev_append functions' functions, binding0, fun in' -> decl (make0 in' nok)
             | _ -> assert false
     in
-    let vins, mat = [v_in], List.map (fun (p, make, e) -> [Some p], (make, e)) li in
-    let mat = List.flatten [mat; [ [None], ((fun _in' -> pat_failed), Fixable.Unit)]] in (* insertion de la clause qui capture tout. ça n'a pas l'air utile. *)
+    let vins, mat = [v_in], List.map (fun (p, e) -> [Some (Ast.Expr.Fixed.unfix_u p)], (Fun.id, e)) li in
     compile env vins mat
 
   let reduce_expr used_vars expr env =
@@ -385,13 +411,9 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
        RedRes(env, functions, make << (fun _in -> Fixable.Let (v, Fixable.Proj(i, e), _in) |> fix), Fixable.Var v)
      |Ast.Expr.Fixable.PatternMatch (e, li) ->
        let env, functions, make, e = res e env in
-       let (env, functions), li_code = List.fold_left_map (fun (env, functions) (pat, e) ->
-                                          let env, functions2, make, e = res e env in
-                                          (env, functions2::functions), (Ast.Expr.Fixed.unfix_u pat, make, e)
-                                        ) (env, [functions]) li in
-       let functions = List.flatten functions in
-       let env, binding, make' = group_patterns env e li_code in
-       let make in' = make (make' in') in
+       let env, functions', binding, make' = group_patterns env e li in
+       let functions = List.rev_append functions functions' in
+       let make in' = make' (make in') in
        RedRes(env, functions, make, binding)
 
 
