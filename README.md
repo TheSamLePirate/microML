@@ -5,13 +5,14 @@ Pour ceux qui ne connaissent pas ocaml, il faut installer opam, le configurer, i
 Le projet permet de parser, typer, évaluer, compiler un micro-caml très simple. C'est inspiré du projet étudant d'un ami, mais son projet à lui restait très primitif. Je suis donc parti sur un micro-caml qui permet du polymorphisme, des types sommes, du pattern matching, avec un backend llvm.
 
 dossiers :
-- bin/main.ml (* fichier d'entrée qui parse les arguments *)
+- bin/main.ml (* fichier d'entrée qui parse les arguments et lance la compilation*)
 - runtime/rt.c (* code C de la runtime *)
-- runtime/rt.h (* header de la runtime *)
+- runtime/include/rt.h (* header de la runtime *)
+- test/main.t (* fichier cram de tests *)
 - test/t%d.ml (* fichier de test *)
 - test/t%d.expected (* fichier de valeurs attendues aux tests *)
 - test/run.ml (* fichier pour lancer les tests *)
-- lib/lib.ml (* librairie générique pour la gestion d'AST, monades pour récursiver des types paramétrés, et les parcourrir de différentes façons *)
+- lib/lib.ml (* librairie générique pour la gestion d'AST, monades pour récursiver des types paramétrés, et les parcourrir de différentes façons, on a aussi quelques fonctions utilitaires à la lib standard ocaml *)
 - lib/ast.ml (* AST primaire, celui fonctionnel, qui sort du parser *)
 - lib/lexer.mll
 - lib/parser.mly
@@ -23,7 +24,7 @@ dossiers :
 - lib/passes.ml (* gestion globale du pipeline des passes *)
 
 QUICK START
-build runtime :
+build runtime (normalement on a pas besoin de ça) :
 ```
 dune build runtime/libruntime.a
 ```
