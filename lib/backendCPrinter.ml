@@ -74,7 +74,7 @@ module Make(B:Ast.Bindings) = struct
   let pp_t0 e f opt = Fixed.Deep.reduce pp_t e f opt
   let pp_t f e = pp_t0 e f None
 
-  let pp_function f func = Format.fprintf f "MLV %a(%a){@\n@[<v 2>  %a@]@\n}@\nMLV %a_clot(MLV args){@\n  return %a(%a);@\n}@\n" B.pp func.id
+  let pp_function f func = Format.fprintf f "MLV %a_clot(MLV args); MLV %a(%a){@\n@[<v 2>  %a@]@\n}@\nMLV %a_clot(MLV args){@\n  return %a(%a);@\n}@\n" B.pp func.id B.pp func.id
                                  (Lib.Pp.list (Lib.Pp.sep ", ")
                                     (fun f v -> Format.fprintf f "MLV %a" B.pp v)) func.args
                          pp_t func.body

@@ -166,11 +166,11 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                     ( (unit, BT.t, BT.t) Fixed.t -> (unit, BT.t, BT.t) Fixed.t ) * BT.t Fixable.atom
   type reduce_val =
     | RedRes of reduce_result
-    | RedLambda of BT.t list * (BT.t list -> reduce_result)
+    | RedLambda of BT.t list * (BT.t list -> BT.t option -> reduce_result)
 
   let res a env = match a env with
     | RedRes (env, funs, make, atom) -> env, funs, make, atom
-    | RedLambda (bindings, fun_) -> fun_ bindings
+    | RedLambda (bindings, fun_) -> fun_ bindings None
 
   let print_mat f mat =
     Lib.Pp.list (Lib.Pp.sep "@\n") (fun f (li, _addon) ->
@@ -216,7 +216,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
       env, (line, (bind, e))
     in
     let rec untuple env decl vins mat =
-      Format.printf "untuple : @[%a@]@\n" print_mat mat;
+      (* Format.printf "untuple : @[%a@]@\n" print_mat mat; *)
       match find_tuple mat with
       | None ->
          let env, mat = List.fold_left_map (unvar_line vins) env mat in
@@ -366,8 +366,19 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
        RedRes(env, List.flatten [functionsa; functionsb; functionsc], makea << (fun in_ ->
          Fixable.LetIf (v, a', makereturn makeb b', makereturn makec c', in_) |> fix
        ), Fixable.Var v)
-    | Ast.Expr.Fixable.LetIn (binding, a, b) (* TODO on va avoir un problème de binding ? *)
+
     | Ast.Expr.Fixable.LetRecIn (binding, a, b) ->
+       let env, bindingrec = bind_local env binding in
+       begin match a env with
+         | RedLambda (bindings, fun_) ->
+            let env, functionsa, makea, a' = fun_ bindings (Some bindingrec) in
+            let env, binding' = bind_local env binding in
+            let env, functionsb, makeb, b' = res b env in
+            RedRes(env, List.flatten [functionsa; functionsb], makea << (fun in_ ->
+                     Fixable.Let (binding', Atom a', makeb in_) |> fix), b')
+         | RedRes (_env, _functionsa, _makea, _a' ) -> assert false
+       end
+    | Ast.Expr.Fixable.LetIn (binding, a, b) ->
        let env, binding' = bind_local env binding in
        let env, functionsa, makea, a' = res a env in
        let env, functionsb, makeb, b' = res b env in
@@ -378,7 +389,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
        begin match a env with
        | RedLambda (bindings, fun_) -> RedLambda (binding'::bindings, fun_)
        | RedRes (env, functionsa, makea, a' ) ->
-       RedLambda ([binding'], (fun bindings ->
+       RedLambda ([binding'], (fun bindings rec_option -> (* TODO gérer la récursion sur cette variable *)
                     let env, funid = fresh env in
                     let clot_vars = List.filter_map (fun binding ->
                                         Option.bind
@@ -386,13 +397,19 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                                           (fun b -> if List.mem b bindings then None else Some b)
                                       )
                                       (B.Set.to_list used_vars) in
+                    let clot_vars = List.filter (fun v -> Some v <> rec_option) clot_vars in
                     let clot_vars_atoms = List.map (fun v -> Fixable.Var v) clot_vars in
                     let env, v = fresh env in
                     let args = List.append clot_vars bindings in
+                    let arity = List.length args in
+                    let makea = match rec_option with
+                      | None -> makea
+                      | Some binding ->
+                         fun in_ -> Fixable.Let (binding, Fixable.MakeClosure (funid, arity, clot_vars_atoms), makea in_) |> fix
+                    in
                     let funs = {id=funid;
                                 args=args;
                                 body=makereturn makea a'} in
-                    let arity = List.length args in
                     let env = {env with arity = BT.Map.add funid arity env.arity} in
                     env, List.flatten [functionsa; [funs]], (fun in_ ->
                       Fixable.Let (v, Fixable.MakeClosure (funid, arity, clot_vars_atoms), in_) |> fix), Fixable.Var v))
@@ -444,6 +461,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     let e = Ast.Expr.Fixed.SurfaceF.map Ast.Expr.Fixed.decoration Ast.Expr.Fixed.decoration_u id id e in
     match e with
     | Ast.Expr.Fixable.Var v -> B.Set.singleton v
+    | Ast.Expr.Fixable.LetRecIn (v, e1, e2)
     | Ast.Expr.Fixable.LetIn (v, e1, e2) -> B.Set.union e1 e2 |> B.Set.remove v
     | Ast.Expr.Fixable.Lambda (v, e) -> B.Set.remove v e
     | Ast.Expr.Fixable.PatternMatch (a, li) -> B.Set.union a (List.fold_left (fun acc (p, e) -> B.Set.union acc (B.Set.diff e p)) B.Set.empty li)
