@@ -38,6 +38,7 @@ module Make(B:Ast.Bindings) = struct
          pp_atom atm2
     | Fixable.Construct (d, atom) -> Format.fprintf f "construct(%d, %a)" d pp_atom atom
     | Fixable.Destruct (d, atom) -> Format.fprintf f "destruct(%d, %a)" d pp_atom atom
+    | Fixable.MakeTuple [] -> Format.fprintf f "make_tuple(0)"
     | Fixable.MakeTuple(atoms) -> Format.fprintf f "make_tuple(%d, %a)" (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
     | Fixable.Nth (i, atom) -> Format.fprintf f "tuple_nth(%d, %a)" i pp_atom atom
     | Fixable.MakeRecord(li) -> Format.fprintf f "make_record(%d, %a)" (List.length li) (Lib.Pp.list (Lib.Pp.sep ",@ ") (fun f (field, atom) -> Format.fprintf f "%d, %a" field pp_atom atom)) li
@@ -58,7 +59,7 @@ module Make(B:Ast.Bindings) = struct
          eelse (Some var)
          next letifopt
     | Fixable.LetIfTag (var, atom, i, ethen, eelse, next) ->
-       Format.fprintf f "MLV %a@\nif (is_constructed(%d, %a)){@\n@[<v2>  %a@]@\n}else{@\n@[<v2>  %a@]}@\n%a"
+       Format.fprintf f "MLV %a;@\nif (is_constructed(%d, %a)){@\n@[<v2>  %a@]@\n}else{@\n@[<v2>  %a@]@\n}@\n%a"
          B.pp var i
          pp_atom atom
          ethen (Some var)

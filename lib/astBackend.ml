@@ -262,9 +262,11 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                                   let score = List.fold_left (fun acc col -> acc * (col + 1)) 1 counts in
                                   nth, score, tags) cols in
                    let cols = List.sort (fun (_, a, _) (_, b, _) -> b - a) cols in
-                   match List.hd cols with
-                   | _, 1, _ -> None (* Que des None, aucun pattern *)
-                   | x -> Some x in
+                   match cols with
+                   | (_, 1, _)::_ -> None (* Que des None, aucun pattern *)
+                   | x::_ -> Some x
+                   | [] -> None
+    in
     let selected_lines env mat vins col field = (* on spécialise la colone `col` pour le champ `field`, il faut déclarer l'accès au sous pattern et virer les lignes ou le constructeur n'est pas le bon.*)
       let env, binding = fresh env in
       let vin = List.nth vins col in
@@ -304,10 +306,10 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                   | [] -> env, [], fakevar, (fun _in' -> pat_failed)
                   | [(_hd, (bind, e))] ->
                      let env, functions, make, e = res e env in
-                     env, functions, e, bind << make
+                     env, functions, e, decl << bind << make
                   | (_hd, (bind, e))::_tl ->
                      let env, functions, make, e = res e env in
-                     env, functions, e, bind << make (* TODO warn *)
+                     env, functions, e, decl << bind << make (* TODO warn *)
                 end
       | Some (col, _, fields) ->
          let vin: BT.t Fixable.atom = List.nth vins col in
