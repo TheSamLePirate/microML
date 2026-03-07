@@ -29,7 +29,7 @@ end = struct
 
   let ppty f ty = Ty.Fixed.pp F.pp BT.pp BTyNamed.pp f ty
 
-  let ppenv f env =
+  let _ppenv f env =
     Format.fprintf f "@[{fresh:%a;@\nbindings:%a;@\ntybindings:@[%a@]@\n}@]"
     BT.pp env.fresh
     (Lib.Pp.assoc B.pp ppty) (B.Map.to_list env.bindings)
@@ -63,9 +63,9 @@ end = struct
 
   (* TODO utiliser le zip *)
   let rec unify location env t1 t2 =
-    Format.printf "env:%a@\nunify @[<v>-%a@\n-%a@]@\n" ppenv env ppty (tf location t1) ppty (tf location t2);
+    (* Format.printf "env:%a@\nunify @[<v>-%a@\n-%a@]@\n" ppenv env ppty (tf location t1) ppty (tf location t2); *)
     match t1, t2 with
-    | Ty.Named (li1, d1), Named (li2, d2) when BTyNamed.equal d1 d2 -> (* TODO instancier sauf si c'est pas type somme *)
+    | Ty.Named (li1, d1), Ty.Named (li2, d2) when BTyNamed.equal d1 d2 -> (* TODO instancier sauf si c'est pas type somme *)
        let env, li = match Lib.zip_opt li1 li2 with
            | None -> Lib.Pp.failwith "%a vs %a" ppty (tf location t1) ppty (tf location t2)
            | Some li -> List.fold_left_map (fun env (t1, t2) -> unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
@@ -304,7 +304,7 @@ end = struct
 
   let process e env =
     let env, e = Expr.Fixed.Traverse.decorate_foldmap ty_expr (fun _ -> assert false) Lib.idacc Lib.idacc e env in
-    Format.printf "env=%a@\n" ppenv env;
+    (* Format.printf "env=%a@\n" ppenv env; *)
     let app (loc, ty) _ =
       let ty = apply_ty env ty in
       loc, ty in

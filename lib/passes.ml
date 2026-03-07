@@ -60,8 +60,10 @@ let parse_file filename =
   close_in ic;
   ast
 
-let print_pass pp = {Ast.init = ();
-                     Ast.process = fun () value -> Format.printf "%a@\n" pp value; (), value }
+let print_pass name pp =
+  Format.printf "passe de compilation : %S@\n" name;
+  {Ast.init = ();
+   Ast.process = fun () value -> Format.printf "%a@\n" pp value; (), value }
 
 let dump ic =
   try
@@ -104,20 +106,22 @@ let (>|>) ast passe = snd (ast >*> passe)
 
 let pipeline_base filename =
   parse_file filename
+  >|> print_pass "parsing" (Ast.TopLvl.pp Lib.Pp.string Lib.Pp.string Lib.Pp.string Lib.Pp.string)
   >|> Bindings.passe
+  >|> print_pass "bindings" (Bindings.debug Lib.Pp.string Lib.Pp.string Lib.Pp.string)
   >|> Ty.passe
   >|> Fields.passe
+  >|> print_pass "fields" (Fields.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)
 
 let pipeline_eval filename =
   pipeline_base filename
   >|> EvalI.passe
-  >|> print_pass EvalI.pp
+  >|> print_pass "eval" EvalI.pp
 
 let pipeline_llvm filename output_file runtime_file runtime_header_dir =
   pipeline_base filename
-  >|> print_pass (Bindings.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)
   >|> Backend.passe
-  >|> print_pass Backend.debug
+  >|> print_pass "backend" Backend.debug
   >*> CPrinter.passe
   |> clang_print Format.std_formatter
   |> clang_pass output_file runtime_file runtime_header_dir
