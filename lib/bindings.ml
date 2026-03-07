@@ -38,7 +38,8 @@ end = struct
         acc, LetIn (ibinding, def, in_)
      | LetRecIn (binding, def, in_) ->
         let ibinding, acc' = stringmap_add acc binding in
-        let acc, def = fin def acc' |> jf acc in
+        let acc'', def = fin def acc' |> jf acc in
+        let acc' = justfresh acc'' acc' in
         let acc, in_ = fin in_ acc' |> jf acc in
         acc, LetRecIn (ibinding, def, in_)
      | PatternMatch (a, li) ->
