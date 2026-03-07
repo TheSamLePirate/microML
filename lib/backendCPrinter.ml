@@ -52,7 +52,7 @@ module Make(B:Ast.Bindings) = struct
   let pp_t e f letifopt = match e with
     | Fixable.Let (var, rhs, e) -> Format.fprintf f "MLV %a = %a;@\n%a" B.pp var pp_rhs rhs e letifopt
     | Fixable.LetIf (var, atom, ethen, eelse, next) ->
-       Format.fprintf f "MLV %a@\nif (%a){@\n@[<v2>  %a@]@\n}else{@\n@[<v2>  %a@]}@\n%a"
+       Format.fprintf f "MLV %a;@\nif (to_bool(%a)){@\n@[<v2>  %a@]@\n}else{@\n@[<v2>  %a@]}@\n%a"
          B.pp var
          pp_atom atom
          ethen (Some var)

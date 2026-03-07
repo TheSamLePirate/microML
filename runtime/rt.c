@@ -10,6 +10,9 @@ struct MLV *memory = NULL;
 struct MLV *memory_ptr = NULL;
 struct MLV *end_memory = NULL;
 
+struct MLV False = {0, NULL, 0, NULL};
+struct MLV True = {1, NULL, 0, NULL};
+
 struct MLV *alloc(int i){
   if (memory == NULL){
     memory = malloc(INIT_SIZE * sizeof(struct MLV));
@@ -101,7 +104,21 @@ struct MLV record_get(struct MLV record, int field){
   assert(0);
 }
 
-// TODO trucs pour le pattern match
+struct MLV tuple_nth(int i, struct MLV a){
+  return a.ptr[i];
+}
+struct MLV make_tuple(int n, ...){
+  va_list ap;
+  va_start(ap, n);
+  struct MLV out;
+  out.ptr = alloc(n);
+  out.size = n;
+  for (int i = 0; i < n; i++) {
+    out.ptr[i] = va_arg(ap, MLV);
+  }
+  va_end(ap);
+  return out;
+}
 
 struct MLV make_int(int i){
   struct MLV out;
@@ -122,6 +139,20 @@ struct MLV int_sub(struct MLV a, struct MLV b){
   out.value = a.value - b.value;
   out.ptr = NULL;
   return out;
+}
+
+int to_bool(struct MLV a){
+  return a.value;
+}
+
+struct MLV mlv_eq(struct MLV a, struct MLV b){
+  if (a.value == b.value &&
+    a.funptr == b.funptr && a.size == b.size){
+    for (int i = 0; i < a.size; i ++){
+      if (!to_bool(mlv_eq(a.ptr[i], b.ptr[i]))) return False;
+    }
+    return True;
+  } else return False;
 }
 
 struct MLV int_mul(struct MLV a, struct MLV b){

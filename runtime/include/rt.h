@@ -27,3 +27,6 @@ struct MLV int_div(struct MLV a, struct MLV b);
 
 void runtime_init();
 extern MLV prim_print_int_clot;
+
+struct MLV mlv_eq(struct MLV a, struct MLV b);
+int to_bool(struct MLV a);

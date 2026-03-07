@@ -444,7 +444,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
        let env, functions, make, e = res e env in
        let env, functions', binding, make' = group_patterns env e li in
        let functions = List.rev_append functions functions' in
-       let make in' = make' (make in') in
+       let make in' = make (make' in') in
        RedRes(env, functions, make, binding)
 
 
