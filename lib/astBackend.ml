@@ -192,23 +192,35 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
               | None, _ -> col + 1, None
             ) (0, None) cols |> snd
           ) mat in
-    let unpatvar env vin (bind, e) binding =
+    let unpatvar env vin bind binding =
       let env, binding' = bind_local env binding in (* ça génère un letin inutile qu'on devra corriger à l'inline *)
       let bind' in' = bind (Fixed.fix (Fixable.Let (binding', Fixable.Atom vin, in')) ()) in
-      env, (bind', e)
+      env, bind'
     in
     let pat_to_len (bind, e) env vin pat len = match pat with
       | None -> env, (bind, e), List.map (fun _ -> None) (0 -- len)
       | Some Ast.Expr.Pattern.Tuple li -> env, (bind, e), List.map (fun i -> Some (Ast.Expr.Fixed.unfix_u i)) li
       | Some Ast.Expr.Pattern.Var binding ->
-         let env, (bind, e) = unpatvar env vin (bind, e) binding in
+         let env, bind = unpatvar env vin bind binding in
          env, (bind, e), List.map (fun _ -> None) (0 -- len)
       | Some Ast.Expr.Pattern.Construct (_, _) -> assert false
+    in
+    let unvar_line vins env (line, (bind, e)) =
+      let (env, bind), line = List.fold_left_map (fun (env, bind) (pat, vin) ->
+                                  match pat with
+                                  | Some Ast.Expr.Pattern.Var binding ->
+                                     let env, bind = unpatvar env vin bind binding in
+                                     (env, bind), None
+                                  | x -> (env, bind), x
+                                ) (env, bind) (List.combine line vins) in
+      env, (line, (bind, e))
     in
     let rec untuple env decl vins mat =
       Format.printf "untuple : @[%a@]@\n" print_mat mat;
       match find_tuple mat with
-      | None -> env, decl, vins, mat (* TODO final unvar *)
+      | None ->
+         let env, mat = List.fold_left_map (unvar_line vins) env mat in
+         env, decl, vins, mat
       | Some (col, len) ->
          let vin = List.nth vins col in (* pour les patVar *)
          let (env, decl, _), vins =
@@ -267,7 +279,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                             if field = field' then
                               match Ast.Expr.Fixed.unfix_u p with
                               | Ast.Expr.Pattern.Var binding ->
-                                 let env, (bind, e) = unpatvar env vin' (bind, e) binding in
+                                 let env, bind = unpatvar env vin' bind binding in
                                  env, Some (List.mapi (fun i p' -> if i = col then None else p') line, (bind, e))
                               | pat -> env, Some (List.mapi (fun i p' -> if i = col then Some pat else p') line, (bind, e))
                             else env, None
