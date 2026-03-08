@@ -135,22 +135,18 @@ struct MLV make_tuple(int n, ...){
 struct MLV make_int(int i){
   struct MLV out;
   out.value = i;
+  out.size = 0;
   out.ptr = NULL;
+  out.funptr = NULL;
   return out;
 }
 
 struct MLV int_add(struct MLV a, struct MLV b){
-  struct MLV out;
-  out.value = a.value + b.value;
-  out.ptr = NULL;
-  return out;
+  return make_int(a.value + b.value);
 }
 
 struct MLV int_sub(struct MLV a, struct MLV b){
-  struct MLV out;
-  out.value = a.value - b.value;
-  out.ptr = NULL;
-  return out;
+  return make_int(a.value - b.value);
 }
 
 int to_bool(struct MLV a){
@@ -168,17 +164,11 @@ struct MLV mlv_eq(struct MLV a, struct MLV b){
 }
 
 struct MLV int_mul(struct MLV a, struct MLV b){
-  struct MLV out;
-  out.value = a.value * b.value;
-  out.ptr = NULL;
-  return out;
+  return make_int(a.value * b.value);
 }
 
 struct MLV int_div(struct MLV a, struct MLV b){
-  struct MLV out;
-  out.value = a.value / b.value;
-  out.ptr = NULL;
-  return out;
+  return make_int(a.value / b.value);
 }
 
 MLV prim_print_int(MLV m){
