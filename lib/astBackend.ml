@@ -231,7 +231,7 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
                        let env, binding = fresh env in
                        let decl in' = Fixed.fix (Fixable.Let (binding, Fixable.Nth (i, vin), decl in')) () in
                        (env, decl, (Fixable.Var binding)::vins')) (env, decl, []) (0 -- len)
-                 in (env, decl, i+1), vins'
+                 in (env, decl, i+1), List.rev vins'
                else (env, decl, i+1), [vin]
              ) (env, decl, 0) vins
          in
