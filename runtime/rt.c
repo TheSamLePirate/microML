@@ -24,7 +24,9 @@ struct MLV *alloc(int i){
     printf("Pas assez de mémoire.");
     exit(1);
   }
-  return memory_ptr += i;
+  struct MLV *out = memory_ptr;
+  memory_ptr += i;
+  return out;
 }
 
 struct MLV copy(struct MLV a){
@@ -40,10 +42,11 @@ struct MLV copy(struct MLV a){
 }
 
 struct MLV clot_call(struct MLV a, int n, ...) {
-  struct MLV cpy = copy(a);
   va_list ap;
   va_start(ap, n);
+  struct MLV cpy = copy(a);
   for (int i = 0; i < n; i++) {
+    assert(cpy.value < cpy.size);
     cpy.ptr[cpy.value ++] = va_arg(ap, MLV);
     if (cpy.value == cpy.size){
       cpy = cpy.funptr(cpy);
@@ -57,7 +60,9 @@ struct MLV clot_call(struct MLV a, int n, ...) {
 struct MLV clot_make(void* funptr, int arr, int n, ...) {
   va_list ap;
   va_start(ap, n);
-
+  if (n > arr) {
+    assert(0);
+  }
   struct MLV out;
   out.funptr = funptr;
   out.size = arr;
@@ -74,19 +79,24 @@ struct MLV construct(int field, struct MLV v){
   struct MLV out;
   out.ptr = alloc(1);
   out.value = field;
+  out.size = 1;
   out.ptr[0] = v;
+  out.funptr = NULL;
   return out;
 }
 
 struct MLV destruct(int field, struct MLV a){
+  assert(a.size == 1);
   return a.ptr[0];
 }
 int is_constructed(int f, struct MLV a){
+  assert(a.size == 1);
   return a.value == f;
 }
 
 struct MLV record(int nfields){ // TODO ...
   struct MLV out;
+  out.funptr = NULL;
   out.ptr = alloc(nfields * 2);
   out.size = nfields;
   return out;
@@ -111,7 +121,9 @@ struct MLV make_tuple(int n, ...){
   va_list ap;
   va_start(ap, n);
   struct MLV out;
+  out.funptr = NULL;
   out.ptr = alloc(n);
+  out.value = 0;
   out.size = n;
   for (int i = 0; i < n; i++) {
     out.ptr[i] = va_arg(ap, MLV);
