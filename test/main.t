@@ -7,6 +7,7 @@
 TESTING MAIN
   $ ../bin/main.exe --help
   usage: microml <file>
+    --debug add debug (args must be parsing, bindings, fields, eval or backend)
     -o output file
     --runtime runtime file
     -I runtime header directory

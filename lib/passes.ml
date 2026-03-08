@@ -60,10 +60,11 @@ let parse_file filename =
   close_in ic;
   ast
 
-let print_pass name pp =
-  Format.printf "passe de compilation : %S@\n" name;
+let print_pass pp =
   {Ast.init = ();
    Ast.process = fun () value -> Format.printf "%a@\n" pp value; (), value }
+
+let no_pass = {Ast.init = (); Ast.process = fun () value -> (), value }
 
 let dump ic =
   try
@@ -103,25 +104,33 @@ let clang_pass output_file runtime_file runtime_header_dir prog =
 (* TODO gérer un genre d'option, gestion des erreurs, avancer petit à petit*)
 let (>*>) ast passe = List.fold_left_map passe.Ast.process passe.Ast.init ast
 let (>|>) ast passe = snd (ast >*> passe)
+let (>|?>) ast passe = ast >|> passe ()
 
-let pipeline_base filename =
+let handle_option name access pass () =
+  if access name then
+    begin Format.printf "Passe : %s@\n" name; pass end
+  else no_pass
+
+let pipeline_base options filename =
   parse_file filename
-  >|> print_pass "parsing" (Ast.TopLvl.pp Lib.Pp.string Lib.Pp.string Lib.Pp.string Lib.Pp.string)
+  >|?> (handle_option "parsing" options
+         (print_pass (Ast.TopLvl.pp Lib.Pp.string Lib.Pp.string Lib.Pp.string Lib.Pp.string)))
   >|> Bindings.passe
-  >|> print_pass "bindings" (Bindings.debug Lib.Pp.string Lib.Pp.string Lib.Pp.string)
+  >|?> (handle_option "bindings" options
+         (print_pass (Bindings.debug Lib.Pp.string Lib.Pp.string Lib.Pp.string)))
   >|> Ty.passe
   >|> Fields.passe
-  >|> print_pass "fields" (Fields.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)
+  >|?> (handle_option "fields" options (print_pass (Fields.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)))
 
-let pipeline_eval filename =
-  pipeline_base filename
+let pipeline_eval options filename =
+  pipeline_base options filename
   >|> EvalI.passe
-  >|> print_pass "eval" EvalI.pp
+  >|?> (handle_option "eval" options (print_pass EvalI.pp))
 
-let pipeline_llvm filename output_file runtime_file runtime_header_dir =
-  pipeline_base filename
+let pipeline_llvm options filename output_file runtime_file runtime_header_dir =
+  pipeline_base options filename
   >|> Backend.passe
-  >|> print_pass "backend" Backend.debug
+  >|?> (handle_option "backend" options (print_pass Backend.debug))
   >*> CPrinter.passe
   |> clang_print Format.std_formatter
   |> clang_pass output_file runtime_file runtime_header_dir

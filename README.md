@@ -41,6 +41,7 @@ Usage :
 OCAMLRUNPARAM=b dune exec -- bin/main.exe test/t02.ml
 ```
 
+Ajout de l'option --debug <nom de la passe> pour pouvoir afficher un AST intermédiaire (utile pour le debug)
 
 ## Lib
 module Pp : utilitaires pour les Printers
