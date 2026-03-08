@@ -82,7 +82,7 @@ struct MLV destruct(int field, struct MLV a){
   return a.ptr[0];
 }
 int is_constructed(int f, struct MLV a){
-  return a.value;
+  return a.value == f;
 }
 
 struct MLV record(int nfields){ // TODO ...
