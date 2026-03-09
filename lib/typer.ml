@@ -66,6 +66,14 @@ end = struct
 
   let sort_sum li = List.sort (fun (a, _) (b, _) -> F.compare a b) li
 
+  let occurs_check tyvar ty =
+    Ty.Fixed.Deep.exists (function
+        | Ty.Var v when BT.compare v tyvar == 0 -> true
+        | _ -> false) ty
+  let occurs_check v t location =
+    let t = Ty.Fixed.fix t location in
+    if occurs_check v t then Lib.Pp.failwith "type rec : %a occurs in %a" BT.pp v ppty t
+
   (* TODO utiliser le zip *)
   let rec unify location env t1 t2 =
     (* Format.printf "env:%a@\nunify @[<v>-%a@\n-%a@]@\n" ppenv env ppty (tf location t1) ppty (tf location t2); *)
@@ -79,6 +87,7 @@ end = struct
     | Ty.Var v1, Ty.Var v2 when BT.equal v1 v2 ->
        env, t1
     | Ty.Var v, t | t, Ty.Var v -> (* TODO interdire un type récursif *)
+       occurs_check v t location;
        let env, t = match BT.Map.find_opt v env.tybindings with
        | None -> env, t
        | Some t2 -> unify location env t (Ty.Fixed.unfix t2)
