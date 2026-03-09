@@ -238,6 +238,8 @@ module Fix4 (F : Fixable4) = struct
     let rec foldmapfgh f g h (F (d, x)) acc =
       let acc, x = Surface.foldmap (foldmapfgh f g h) f g h x acc in
       acc, F( d, x)
+    let rec exists f (F (_, x)) =
+      f x || Surface.fold (fun x acc -> acc || exists f x) passacc passacc passacc x false
   end
 
   module Traverse = struct
