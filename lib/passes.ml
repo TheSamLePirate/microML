@@ -118,7 +118,12 @@ let pipeline_base options filename =
   >|> Bindings.passe
   >|?> (handle_option "bindings" options
          (print_pass (Bindings.debug Lib.Pp.string Lib.Pp.string Lib.Pp.string)))
-  >|> Ty.passe
+  >*> Ty.passe
+  |> (fun (env, ast) ->
+    if options "typer_env" then Format.printf "typer env : @[<v>%a@]@\n" Ty.ppenv env;
+    ast
+  )
+  >|?> (handle_option "typer" options (print_pass Ty.debug))
   >|> Fields.passe
   >|?> (handle_option "fields" options (print_pass (Fields.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)))
 

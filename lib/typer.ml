@@ -4,7 +4,6 @@ let tf location x = Ty.Fixed.fix x location
 
 module Make(B:Bindings)(BTyVar:Bindings)(BTyNamed:Bindings)(BT:FreshableBindings)(F:Fields) :
 sig
-
   type 'a ty = ('a, F.t, BT.t, BTyNamed.t) Ty.Fixed.t
 
   type acc
@@ -15,6 +14,12 @@ sig
                (Ast.Loc.t * Ast.Loc.t ty, Ast.Loc.t,
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl) passe
+  val debug : Format.formatter -> (Ast.Loc.t * Ast.Loc.t ty, Ast.Loc.t,
+                BT.t, BTyNamed.t,
+                F.t, B.t) Ast.TopLvl.decl -> unit
+
+  val ppenv : Format.formatter -> acc -> unit
+
 end = struct
   open Expr
   type 'a ty = ('a, F.t, BT.t, BTyNamed.t) Ty.Fixed.t
@@ -29,7 +34,7 @@ end = struct
 
   let ppty f ty = Ty.Fixed.pp F.pp BT.pp BTyNamed.pp f ty
 
-  let _ppenv f env =
+  let ppenv f env =
     Format.fprintf f "@[{fresh:%a;@\nbindings:%a;@\ntybindings:@[%a@]@\n}@]"
     BT.pp env.fresh
     (Lib.Pp.assoc B.pp ppty) (B.Map.to_list env.bindings)
@@ -170,7 +175,11 @@ end = struct
   let apply_ty env ty = (* On applique la map de substitution *)
     Ty.Fixed.Deep.map
       (function
-       | Var binding -> Ty.Fixed.unfix (BT.Map.find binding env.tybindings) (* TODO récursif ? *)
+       | Var binding ->
+          begin match BT.Map.find_opt binding env.tybindings with
+          | None -> Var binding
+          | Some s -> Ty.Fixed.unfix s (* TODO récursif ? *)
+          end
       | x -> x )
       ty
 
@@ -347,5 +356,11 @@ end = struct
       Ast.init = empty;
       process = process
   }
-
+  let debug f = function
+    | Ast.TopLvl.Let (binding, expr)
+    | Ast.TopLvl.LetRec (binding, expr) ->
+       let _, ty = Expr.Fixed.decoration expr in
+       Format.fprintf f "val %a : @[<v>%a@]@\n"
+       B.pp binding ppty ty
+    | _ -> ()
 end
