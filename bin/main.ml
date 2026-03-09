@@ -25,5 +25,8 @@ let () =
     match !file with
     | Some f -> f
     | None -> raise (Arg.Bad "missing input file")
-  in
-  ignore (Passes.pipeline_llvm options filename !output_file !runtime_file !runtime_header_dir)
+  in try
+    ignore (Passes.pipeline_llvm options filename !output_file !runtime_file !runtime_header_dir)
+  with (Failure msg) as e ->
+    Format.printf "%s\n\n" msg;
+    raise e
