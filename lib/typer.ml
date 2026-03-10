@@ -23,9 +23,14 @@ sig
 end = struct
   open Expr
   type 'a ty = ('a, F.t, BT.t, BTyNamed.t) Ty.Fixed.t
+
+  type scheme = {
+      vars : BT.t list;
+      body : Ast.Loc.t ty;
+    }
   type env = {
       fresh : BT.t;
-      bindings : Ast.Loc.t ty B.Map.t;
+      bindings : scheme B.Map.t;
       tybindings : Ast.Loc.t ty BT.Map.t;
       ty_named : (BT.t list * Ast.Loc.t ty) BTyNamed.Map.t;
       fieldmap : BTyNamed.t F.Map.t
@@ -34,18 +39,29 @@ end = struct
 
   let ppty f ty = Ty.Fixed.pp F.pp BT.pp BTyNamed.pp f ty
 
+  let ftv_ty ty = Ty.Fixed.Deep.foldfg Lib.passacc (BT.Set.add) Lib.passacc ty BT.Set.empty
+  let ftv_env env = B.Map.fold (fun _binding scheme acc -> BT.Set.union acc (BT.Set.of_list scheme.vars) ) env.bindings BT.Set.empty
+
+  let generalize env ty =
+    let vars = BT.Set.diff (ftv_ty ty) (ftv_env env) in
+    {vars=BT.Set.to_list vars; body=ty}
+
+  let pp_scheme f scheme = Format.fprintf f "@[∀ %a . %a@]"
+                         (Lib.Pp.list (Lib.Pp.sep " ") BT.pp) scheme.vars
+                         ppty scheme.body
+
   let ppenv f env =
     Format.fprintf f "@[{fresh:%a;@\nbindings:%a;@\ntybindings:@[%a@]@\n}@]"
     BT.pp env.fresh
-    (Lib.Pp.assoc B.pp ppty) (B.Map.to_list env.bindings)
+    (Lib.Pp.assoc B.pp pp_scheme) (B.Map.to_list env.bindings)
     (Lib.Pp.assoc BT.pp ppty) (BT.Map.to_list env.tybindings)
 
-  let empty = { fresh = BT.init; bindings = B.Map.empty; tybindings = BT.Map.empty; ty_named=BTyNamed.Map.empty; fieldmap = F.Map.empty}
+  let empty = { fresh = BT.init; bindings = B.Map.empty; tybindings = BT.Map.empty; ty_named=BTyNamed.Map.empty; fieldmap = F.Map.empty; }
   let fresh location env v =
     let typevar =  Ty.Var env.fresh |> tf location in
     {env with
       fresh=BT.next env.fresh;
-      bindings = B.Map.add v typevar env.bindings}, typevar
+      bindings = B.Map.add v {vars= []; body=typevar } env.bindings}, typevar
   let fresh'var env =
     {env with fresh=BT.next env.fresh}, env.fresh
   let fresh' location env =
@@ -57,12 +73,19 @@ end = struct
     let (env, assocvars), nvars = List.fold_left_map (fun (env, assocvars) var ->
                              let env, var' = fresh'var env in
                              (env, BT.Map.add var var' assocvars), var') (env, BT.Map.empty) tyvars in
-    env, nvars, Ty.Fixed.Deep.mapfg Lib.id (fun var -> BT.Map.find var assocvars) Lib.id ty
+    env, nvars, Ty.Fixed.Deep.mapfg Lib.id (fun var -> Option.value (BT.Map.find_opt var assocvars) ~default:var) Lib.id ty
 
-  let insert_mono env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
-  let insert_poly env binding ty = { env with bindings = B.Map.add binding ty env.bindings}
+  let insert_mono env binding ty =
+    { env with bindings = B.Map.add binding {vars=[]; body=ty} env.bindings}
 
-  let find_binding env binding = env, B.Map.find binding env.bindings (* TODO généralisation *)
+  let insert_poly env binding ty =
+    let scheme = generalize env ty in
+    { env with bindings = B.Map.add binding scheme env.bindings}
+
+  let find_binding env binding =
+    let sch = B.Map.find binding env.bindings in
+    let env, _nvars, ty = instantiate env sch.vars sch.body in
+    env, ty
 
   let sort_sum li = List.sort (fun (a, _) (b, _) -> F.compare a b) li
 
