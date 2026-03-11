@@ -63,6 +63,7 @@ let pp_rhs ppfun ppvar f = function
       | LetIfTag (v, atom, i, e1, e2, e3) -> Format.fprintf f "let %a = if constructed-%d %a then@\n@[<v 2>  %a@]@\nelse@\n@[<v 2>  %a@] in@\n%a" ppvar v i (pp_atom ppvar) atom ppa e1 ppa e2 ppa e3
       | Return atom -> Format.fprintf f "return %a" (pp_atom ppvar) atom
       | AssertFalse -> Format.fprintf f "assert false"
+
   module Make(F:Applicative) = struct
     open F
     include ListApp(F)
@@ -74,7 +75,7 @@ let pp_rhs ppfun ppvar f = function
       | Bool b -> ret (Bool b)
       | Char c -> ret (Char c)
       | Unit -> ret Unit
-    let foldmap_rhs g h = function
+    let foldmap_rhs foldmap_atom g h = function
       | Atom v -> ret (fun v -> Atom v) <*> foldmap_atom h v
       | Prim2 (op, a1, a2) -> ret (fun a1 a2 -> Prim2 (op, a1, a2)) <*> foldmap_atom h a1 <*> foldmap_atom h a2
       | Prim1 (op, a) -> ret (fun a -> Prim1 (op, a)) <*> foldmap_atom h a
@@ -89,7 +90,7 @@ let pp_rhs ppfun ppvar f = function
       | MakeClosure (funid, i, li) -> ret (fun funid li -> MakeClosure (funid, i, li)) <*> g funid <*> fold_left_map (foldmap_atom h) li
 
     let foldmap f g h = function
-      | Let (v, rhs, e) -> ret (fun v rhs e -> Let (v, rhs, e)) <*> h v <*> foldmap_rhs g h rhs <*> f e
+      | Let (v, rhs, e) -> ret (fun v rhs e -> Let (v, rhs, e)) <*> h v <*> foldmap_rhs foldmap_atom g h rhs <*> f e
       | LetIf (v, a, e1, e2, e3) -> ret (fun v a e1 e2 e3 -> LetIf (v, a, e1, e2, e3)) <*> h v <*> foldmap_atom h a <*> f e1 <*> f e2 <*> f e3
       | LetIfTag (v, a, i, e1, e2, e3) -> ret (fun v a e1 e2 e3 -> LetIfTag (v, a, i, e1, e2, e3)) <*> h v <*> foldmap_atom h a <*> f e1 <*> f e2 <*> f e3
       | Return a -> ret (fun a -> Return a) <*> foldmap_atom h a

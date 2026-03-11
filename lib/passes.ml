@@ -43,6 +43,7 @@ module Ty = Typer.Make(IntBindings)(StringBindings)(StringBindings)(IntTypesBind
 module EvalI = Eval.Make(IntBindings)(IntFields)
 module Backend = AstBackend.Make(IntBindings)(IntBindings)
 module CPrinter = BackendCPrinter.Make(IntBindings)
+module InlineB = InlineBackend.Make(IntBindings)
 
 let parse_file filename =
   let ic = open_in filename in
@@ -136,6 +137,8 @@ let pipeline_llvm options filename output_file runtime_file runtime_header_dir =
   pipeline_base options filename
   >|> Backend.passe
   >|?> (handle_option "backend" options (print_pass Backend.debug))
+  >|> InlineB.passe
+  >|?> (handle_option "inline backend" options (print_pass InlineB.debug))
   >*> CPrinter.passe
   |> clang_print Format.std_formatter
   |> clang_pass output_file runtime_file runtime_header_dir
