@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <stdarg.h>
 
 #define STEP_SIZE 1024 * 1024
 #define INIT_SIZE STEP_SIZE * 128
