@@ -10,7 +10,6 @@ dossiers :
 - runtime/include/rt.h (* header de la runtime *)
 - test/main.t (* fichier cram de tests *)
 - test/t%.ml (* fichier de test *)
-- test/t%.expected (* fichier de valeurs attendues aux tests *)
 - lib/lib.ml (* librairie générique pour la gestion d'AST, monades pour récursiver des types paramétrés, et les parcourrir de différentes façons, on a aussi quelques fonctions utilitaires à la lib standard ocaml *)
 - lib/ast.ml (* AST primaire, celui fonctionnel, qui sort du parser *)
 - lib/lexer.mll
