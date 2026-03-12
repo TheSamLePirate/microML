@@ -78,7 +78,7 @@ let dump ic =
 let clang_print f (main, funs) =
     Format.fprintf f "#include <assert.h>@\n#include <rt.h>@\n@\n%a@\nint main(){@\n@[<v2>  runtime_init();@\n%a@\nreturn 0;@]@\n}@\n"
       (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) funs
-      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) main;
+      (Pp.list (Pp.sep "@\n") (fun f i -> i f ())) (List.rev main);
     (main, funs)
 
 let clang_pass output_file runtime_file runtime_header_dir prog =
