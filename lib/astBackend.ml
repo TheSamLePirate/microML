@@ -485,16 +485,16 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | Ast.TopLvl.Let (binding, expr)
     | Ast.TopLvl.LetRec (binding, expr) ->
        let args, body = unlambda expr in
+       let env, args = List.fold_left_map (fun env binding -> bind_local env binding) env args in
        let env, binding' = bind_global env binding in
        let env, functions, body = process env body in
        match args with
        | [] -> env, {functions=functions; entry=[binding', body]}
        | li ->
-          let env, li' = List.fold_left_map bind_local env li in
-          let env = {env with arity = BT.Map.add binding' (List.length li') env.arity} in
+          let env = {env with arity = BT.Map.add binding' (List.length li) env.arity} in
           env, {functions=List.append functions [{
                                            id = binding';
-                                           args = li';
+                                           args = li;
                                            body = body
                                        }]; entry = []}
 

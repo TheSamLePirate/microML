@@ -36,6 +36,6 @@ module Make(B:Fields)(BTarget:Ast.FreshableFields) = struct
       Ast.init = B.Map.empty, BTarget.init;
       Ast.process = process;
   }
-  let debug f_pp tyv_pp tyb_pp f e = Ast.TopLvl.pp f_pp BTarget.pp tyv_pp tyb_pp f e
+  let debug b_pp tyv_pp tyb_pp f e = Ast.TopLvl.pp BTarget.pp b_pp tyv_pp tyb_pp f e
 
 end

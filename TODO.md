@@ -1,5 +1,4 @@
 ### TODO
-- ajouter des tests eval et typer (le passing d'options de debug au pipeline)
 - passe pour transformer les && et || en let (ainsi qu'un test associé)
 - compaction des applications lors du backend
 - une passe de suppression des clotures

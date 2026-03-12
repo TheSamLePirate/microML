@@ -32,7 +32,7 @@ module IntFields : Ast.FreshableFields with type t = int = struct
   include Int
   module Map = Map.Make(Int)
   module Set = Set.Make(Int)
-  let pp = Pp.int
+  let pp f i = Format.fprintf f "f%d" i
   let init = 0
   let next n = n + 1
 end
@@ -115,10 +115,10 @@ let handle_option name access pass () =
 let pipeline_base options filename =
   parse_file filename
   >|?> (handle_option "parsing" options
-         (print_pass (Ast.TopLvl.pp Lib.Pp.string Lib.Pp.string Lib.Pp.string Lib.Pp.string)))
+         (print_pass (Ast.TopLvl.pp StringFields.pp StringBindings.pp StringBindings.pp StringBindings.pp)))
   >|> Bindings.passe
   >|?> (handle_option "bindings" options
-         (print_pass (Bindings.debug Lib.Pp.string Lib.Pp.string Lib.Pp.string)))
+         (print_pass (Bindings.debug StringFields.pp StringBindings.pp StringBindings.pp)))
   >*> Ty.passe
   |> (fun (env, ast) ->
     if options "typer_env" then Format.printf "typer env : @[<v>%a@]@\n" Ty.ppenv env;
@@ -126,7 +126,8 @@ let pipeline_base options filename =
   )
   >|?> (handle_option "typer" options (print_pass Ty.debug))
   >|> Fields.passe
-  >|?> (handle_option "fields" options (print_pass (Fields.debug Lib.Pp.int Lib.Pp.int Lib.Pp.string)))
+  >|?> (handle_option "fields" options (print_pass (Fields.debug IntBindings.pp IntBindings.pp StringBindings.pp
+)))
 
 let pipeline_eval options filename =
   pipeline_base options filename
