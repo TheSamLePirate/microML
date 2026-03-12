@@ -3,8 +3,8 @@ open Lib
 
 module Make(B:Bindings)(F:Fields) = struct
 
-  module BindingsMap = Map.Make(B)
-  module FieldsMap = Map.Make(F)
+  module BindingsMap = B.Map
+  module FieldsMap = F.Map
 
   type mlv =
     | Integer of int
@@ -117,7 +117,14 @@ let rec uncell f = function
   let compile env toplvl =
     let open Ast.TopLvl in
     match toplvl with
-    | External (_, _, _) | TypeDecl (_, _, _) -> env, Tuple []
+    | External (binding, _, key) ->
+       begin match key with
+       | "prim_print_int_clot" ->
+          let value = Lambda (fun v -> Format.printf "%d" (integer v); Tuple []) in
+          BindingsMap.add binding value env, Tuple []
+       | _ -> Lib.Pp.failwith "no external %S" key
+       end
+    | TypeDecl (_, _, _) -> env, Tuple []
     | Let (binding, expr) | LetRec( binding, expr) -> (* TODO letrec ? *)
        let value = compile expr env in
        let env = BindingsMap.add binding value env in env, value
