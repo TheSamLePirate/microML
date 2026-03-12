@@ -338,7 +338,15 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | Ast.Expr.Fixable.Integer i -> RedRes(env, [], id, Fixable.Int i)
     | Ast.Expr.Fixable.Bool i -> RedRes(env, [], id, Fixable.Bool i)
     | Ast.Expr.Fixable.Char c -> RedRes(env, [], id, Fixable.Char c)
-    | Ast.Expr.Fixable.Var v -> RedRes(env, [], id, b_to_atom v env)
+    | Ast.Expr.Fixable.Var v -> (* si la variable est une fonction globale toplvl, on est obligé d'en créer une cloture *)
+       begin match B.Map.find_opt v env.globalMap with
+       | None -> RedRes(env, [], id, b_to_atom v env)
+       | Some s -> match BT.Map.find s env.arity with
+                   | 0 -> RedRes(env, [], id, b_to_atom v env)
+                   | arity ->
+                      let env, c = fresh env in
+                      RedRes(env, [], (fun in' -> Fixable.Let (c, Fixable.MakeClosure(s, arity, []), in') |> fix), Fixable.Var c)
+      end
     | Ast.Expr.Fixable.UnOp (op, a) ->
        let env, functionsa, makea, a' = res a env in
        let env, c = fresh env in
