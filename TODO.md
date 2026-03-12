@@ -3,7 +3,7 @@
 - compaction des applications lors du backend
 - une passe de suppression des clotures
 - garbage collector
-- ajouter unit, true, false ?
+- ajouter unit
 
 ### pour bootstrap
 - ajouter des ou et des constantes dans les patterns

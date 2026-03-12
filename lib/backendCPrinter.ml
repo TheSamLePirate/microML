@@ -7,7 +7,8 @@ module Make(B:Ast.Bindings) = struct
     | Fixable.GlobalVar v | Var v -> B.pp f v
     | Fixable.Int i -> Format.fprintf f "make_int(%d)" i
     | Fixable.Char c -> Format.fprintf f "make_char(%c)" c
-    | Fixable.Bool b -> Format.fprintf f "make_bool(%b)" b
+    | Fixable.Bool true -> Format.fprintf f "True"
+    | Fixable.Bool false -> Format.fprintf f "False"
     | Fixable.Unit -> Format.fprintf f "make_unit()"
 
   let pp_rhs f = function

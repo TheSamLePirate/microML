@@ -2,6 +2,9 @@ typedef struct MLV MLV;
 
 typedef MLV (*ml_fun)(MLV arg);
 
+extern MLV True;
+extern MLV False;
+
 struct MLV {
   int value;
   ml_fun funptr;
@@ -19,11 +22,16 @@ int is_constructed(int f, struct MLV a);
 struct MLV tuple_nth(int i, struct MLV a);
 struct MLV make_tuple(int i, ...);
 
+struct MLV make_bool(int i);
 struct MLV make_int(int i);
 struct MLV int_add(struct MLV a, struct MLV b);
 struct MLV int_sub(struct MLV a, struct MLV b);
 struct MLV int_mul(struct MLV a, struct MLV b);
 struct MLV int_div(struct MLV a, struct MLV b);
+
+
+struct MLV bool_or(struct MLV a, struct MLV b);
+struct MLV bool_and(struct MLV a, struct MLV b);
 
 void runtime_init();
 extern MLV prim_print_int_clot;

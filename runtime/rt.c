@@ -142,6 +142,10 @@ struct MLV make_int(int i){
   return out;
 }
 
+struct MLV make_bool(int i){
+  return make_int(i);
+}
+
 struct MLV int_add(struct MLV a, struct MLV b){
   return make_int(a.value + b.value);
 }
@@ -182,3 +186,10 @@ void runtime_init(){
   prim_print_int_clot = clot_make(prim_print_int, 1, 0);
 }
 
+struct MLV bool_or(struct MLV a, struct MLV b) {
+  return make_bool(a.value || b.value);
+}
+
+struct MLV bool_and(struct MLV a, struct MLV b){
+  return make_bool(a.value && b.value);
+}
