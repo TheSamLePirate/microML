@@ -126,8 +126,9 @@ let pipeline_base options filename =
   )
   >|?> (handle_option "typer" options (print_pass Ty.debug))
   >|> Fields.passe
-  >|?> (handle_option "fields" options (print_pass (Fields.debug IntBindings.pp IntBindings.pp StringBindings.pp
-)))
+  >|?> (handle_option "fields" options (print_pass (Fields.debug IntBindings.pp IntBindings.pp StringBindings.pp )))
+  >|> Lazy.passe
+  >|?> (handle_option "lazy" options (print_pass (Lazy.debug IntFields.pp IntBindings.pp IntBindings.pp StringBindings.pp)))
 
 let pipeline_eval options filename =
   pipeline_base options filename
