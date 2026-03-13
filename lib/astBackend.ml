@@ -145,9 +145,12 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     let args, body = unlambda [] expr in
     List.rev args, body
 
-  let bind_global env binding =
+  let bind_global env binding arity =
     let binding' = env.fresh in
-    let env = { env with fresh = BT.next env.fresh; globalMap = B.Map.add binding binding' env.globalMap}
+    let env = { env with fresh = BT.next env.fresh;
+                         globalMap = B.Map.add binding binding' env.globalMap;
+                         arity = BT.Map.add binding' arity env.arity
+              }
     in env, binding'
   let bind_local env binding =
     let binding' = env.fresh in
@@ -341,11 +344,12 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | Ast.Expr.Fixable.Var v -> (* si la variable est une fonction globale toplvl, on est obligé d'en créer une cloture *)
        begin match B.Map.find_opt v env.globalMap with
        | None -> RedRes(env, [], id, b_to_atom v env)
-       | Some s -> match BT.Map.find s env.arity with
-                   | 0 -> RedRes(env, [], id, b_to_atom v env)
-                   | arity ->
-                      let env, c = fresh env in
-                      RedRes(env, [], (fun in' -> Fixable.Let (c, Fixable.MakeClosure(s, arity, []), in') |> fix), Fixable.Var c)
+       | Some s -> match BT.Map.find_opt s env.arity with
+          | None -> Lib.Pp.failwith "(* bug *) arity not found %a (from : %a)" BT.pp s B.pp v
+          | Some 0 -> RedRes(env, [], id, b_to_atom v env)
+          | Some arity ->
+             let env, c = fresh env in
+             RedRes(env, [], (fun in' -> Fixable.Let (c, Fixable.MakeClosure(s, arity, []), in') |> fix), Fixable.Var c)
       end
     | Ast.Expr.Fixable.UnOp (op, a) ->
        let env, functionsa, makea, a' = res a env in
@@ -494,12 +498,11 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | Ast.TopLvl.LetRec (binding, expr) ->
        let args, body = unlambda expr in
        let env, args = List.fold_left_map (fun env binding -> bind_local env binding) env args in
-       let env, binding' = bind_global env binding in
        let env, functions, body = process env body in
+       let env, binding' = bind_global env binding (List.length args) in
        match args with
        | [] -> env, {functions=functions; entry=[binding', body]}
        | li ->
-          let env = {env with arity = BT.Map.add binding' (List.length li) env.arity} in
           env, {functions=List.append functions [{
                                            id = binding';
                                            args = li;
