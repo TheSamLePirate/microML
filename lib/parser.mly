@@ -91,10 +91,16 @@ extern_decl:
     { Ast.TopLvl.External (f, t, s) }
 
 let_decl:
-| LET b=LIDENT EQ ex=expr { Ast.TopLvl.Let (b, ex) }
+| LET b=LIDENT params=list(LIDENT) EQ ex=expr
+    { Ast.TopLvl.Let (b, mk_lambdas (loc $sloc) params ex) }
 
 letrec_decl:
-| LET REC b=LIDENT EQ ex=expr { Ast.TopLvl.LetRec (b, ex) }
+| LET REC b=LIDENT params=nonempty_list(LIDENT) EQ ex=expr
+    { Ast.TopLvl.LetRec (b, mk_lambdas (loc $sloc) params ex) }
+| LET REC b=LIDENT EQ ex=expr
+    { Ast.TopLvl.LetRec (b, ex) }
+
+
 
 /* type ('a,'b) t = ...  (ou sans params) */
 type_decl:
@@ -240,9 +246,8 @@ expr:
 
 | LET; x=LIDENT; EQ; e1=expr; IN; e2=expr
     { e (loc ($startpos, $endpos)) (Fixable.LetIn (x, e1, e2)) }
-
-| FUN; x = LIDENT; ARROW; body = expr
-    { e (loc ($startpos, $endpos)) (Fixable.Lambda (x, body)) }
+| FUN; xs = nonempty_list(LIDENT); ARROW; body = expr
+    { mk_lambdas (loc ($startpos, $endpos)) xs body }
 | MATCH; scrut = expr; WITH; cases = match_cases
     { e (loc ($startpos, $endpos)) (Fixable.PatternMatch (scrut, cases)) }
 | IF; c = expr; THEN; t = expr; ELSE; e0 = expr
