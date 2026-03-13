@@ -146,11 +146,11 @@ module Expr = struct
       | Var c -> ppc f c
       | BinOp (a, op, b) -> Format.fprintf f "(%a %a %a)" ppa a ppop op ppa b
       | UnOp (op, a) -> Format.fprintf f "(%a %a)" ppunop op ppa a
-      | LetIn (c, a, b) -> Format.fprintf f "let %a = %a@\nin@[ %a@]" ppc c ppa a ppa b
+      | LetIn (c, a, b) -> Format.fprintf f "@[let %a = %a@\nin@[ %a@]@]" ppc c ppa a ppa b
       | LetRecIn (c, a, b) -> Format.fprintf f "let rec %a = %a@\nin@[ %a@]" ppc c ppa a ppa b
-      | Lambda (c, a) ->Format.fprintf f "(fun %a -> %a)" ppc c ppa a
+      | Lambda (c, a) ->Format.fprintf f "@[<v>(fun %a -> %a)@]" ppc c ppa a
       | Apply (a, b) -> Format.fprintf f "(%a) (%a)" ppa a ppa b
-      | IfThenElse (a, b, c) -> Format.fprintf f "(if %a then %a else %a)" ppa a ppa b ppa c
+      | IfThenElse (a, b, c) -> Format.fprintf f "(@[<v>if %a@\nthen %a@\nelse %a@])" ppa a ppa b ppa c
 
     module Make(F:Applicative) = struct
       open F
@@ -189,10 +189,10 @@ module TopLvl = struct
          (Lib.Pp.list (Lib.Pp.sep ", ") pp_tyvar) tylist
          (Ty.Fixed.pp pp_field pp_tyvar pp_tybinding ) ty
     | Let (binding, expr) ->
-       Format.fprintf f "let %a = %a" pp_binding binding
+       Format.fprintf f "let %a = @[<v>%a@]" pp_binding binding
          (Expr.Fixed.pp pp_field pp_binding) expr
     | LetRec (binding, expr) ->
-       Format.fprintf f "let rec %a = %a" pp_binding binding
+       Format.fprintf f "let rec %a = @[<v>%a@]" pp_binding binding
          (Expr.Fixed.pp pp_field pp_binding) expr
     | External (binding, ty, str) ->
        Format.fprintf f "external let %a : %a = %S" pp_binding binding
