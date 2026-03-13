@@ -1,5 +1,4 @@
 ### TODO
-- passe pour transformer les && et || en let (ainsi qu'un test associé)
 - compaction des applications lors du backend
 - une passe de suppression des clotures
 - garbage collector
