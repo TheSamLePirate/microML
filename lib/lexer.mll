@@ -44,7 +44,8 @@ let tyvar = '\'' ['a'-'z' '_'] identchar*
 
 
 rule token = parse
-| [' ' '\t' '\r' '\n'] { token lexbuf }
+| '\n' { Lexing.new_line lexbuf; token lexbuf }
+| [' ' '\t' '\r'] { token lexbuf }
 
 | "(*" { comment lexbuf; token lexbuf }
 
