@@ -54,9 +54,10 @@ let parse_file filename =
     with
     | Parser.Error ->
         let p = lb.lex_curr_p in
+        let tok = Lexing.lexeme lb in
         failwith
-          (Printf.sprintf "parse error at %s:%d:%d"
-             p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol))
+          (Printf.sprintf "parse error at %s:%d:%d near %S"
+             p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol) tok)
   in
   close_in ic;
   ast
