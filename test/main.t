@@ -69,6 +69,12 @@ tests randoms :
   $ evalme t05.ml
   6
 
+  $ buildandrun t06.ml
+  42115821441104100115999922120
+  $ evalme t06.ml
+  42115821441104100115999922120
+
+
   $ buildandrun t_lazy.ml
   11
   $ evalme t_lazy.ml
