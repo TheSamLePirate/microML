@@ -498,8 +498,8 @@ module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
     | Ast.TopLvl.LetRec (binding, expr) ->
        let args, body = unlambda expr in
        let env, args = List.fold_left_map (fun env binding -> bind_local env binding) env args in
-       let env, functions, body = process env body in
        let env, binding' = bind_global env binding (List.length args) in
+       let env, functions, body = process env body in
        match args with
        | [] -> env, {functions=functions; entry=[binding', body]}
        | li ->
