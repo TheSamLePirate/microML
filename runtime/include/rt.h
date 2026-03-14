@@ -24,6 +24,8 @@ struct MLV make_tuple(int i, ...);
 
 struct MLV make_bool(int i);
 struct MLV make_int(int i);
+
+struct MLV int_neg(struct MLV a);
 struct MLV int_add(struct MLV a, struct MLV b);
 struct MLV int_sub(struct MLV a, struct MLV b);
 struct MLV int_mul(struct MLV a, struct MLV b);

@@ -153,6 +153,9 @@ struct MLV int_add(struct MLV a, struct MLV b){
 struct MLV int_sub(struct MLV a, struct MLV b){
   return make_int(a.value - b.value);
 }
+struct MLV int_neg(struct MLV a){
+  return make_int(-a.value);
+}
 
 int to_bool(struct MLV a){
   return a.value;
