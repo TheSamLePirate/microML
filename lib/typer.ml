@@ -378,6 +378,7 @@ end = struct
        let env, _tc = unify loc env tc (ty_of_expr expr) in
        let tc = apply_ty env tc in
        let expr = Expr.Fixed.fix (Expr.Fixed.unfix expr) (loc, tc) in
+       let env = insert_poly env binding (ty_of_expr expr) in
        env, LetRec(binding, expr)
     | External (binding, ty, s) ->
        let map = BTyVar.Map.empty in (* TODO peut-être un forall ? *)
