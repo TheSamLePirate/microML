@@ -47,7 +47,7 @@ module Make(B:Ast.Bindings) = struct
     | Fixable.CallDirect(funid, atoms) -> Format.fprintf f "%a(%a)" B.pp funid (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
     | Fixable.CallClosure (atom, atoms) -> Format.fprintf f "clot_call(%a, %d, %a)" pp_atom atom (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
     | Fixable.MakeClosure (funid, arity, []) -> Format.fprintf f "clot_make(%a_clot, %d, 0)" B.pp funid arity
-    | Fixable.MakeClosure (funid, arity, atoms) -> Format.fprintf f "clot_make(%a, %d, %d, %a)" B.pp funid arity (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.MakeClosure (funid, arity, atoms) -> Format.fprintf f "clot_make(%a_clot, %d, %d, %a)" B.pp funid arity (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
 
 
   let pp_t e f letifopt = match e with
