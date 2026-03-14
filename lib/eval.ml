@@ -115,17 +115,24 @@ let rec uncell f = function
   let compile e = Expr.Fixed.Deep.reduce mape mapp e
 
   let compile env toplvl =
-    let open Ast.TopLvl in
     match toplvl with
-    | External (binding, _, key) ->
+    | Ast.TopLvl.External (binding, _, key) ->
        begin match key with
        | "prim_print_int_clot" ->
           let value = Lambda (fun v -> Format.printf "%d" (integer v); Tuple []) in
           BindingsMap.add binding value env, Tuple []
        | _ -> Lib.Pp.failwith "no external %S" key
        end
-    | TypeDecl (_, _, _) -> env, Tuple []
-    | Let (binding, expr) | LetRec( binding, expr) -> (* TODO letrec ? *)
+    | Ast.TopLvl.TypeDecl (_, _, _) -> env, Tuple []
+    | Ast.TopLvl.LetRec( binding, expr) ->
+       let cell = ref None in
+       let env' = BindingsMap.add binding (Cell cell) env in
+       let v = compile expr env' in
+       let () = match v with
+         | Lambda _ -> cell := Some v
+         | _ -> failwith "let rec: RHS must be a function"
+       in env', v
+    | Ast.TopLvl.Let (binding, expr) ->
        let value = compile expr env in
        let env = BindingsMap.add binding value env in env, value
 
