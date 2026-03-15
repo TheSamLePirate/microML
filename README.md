@@ -1,9 +1,21 @@
 # MINI OCAML
 
+Le projet permet de parser, typer, évaluer, compiler un micro-caml très simple. C'est inspiré du projet étudant d'un ami, mais son projet à lui restait très primitif. Je suis donc parti sur un micro-caml qui permet les fonctionnalités suivantes :
+- un typer avec du polymorphisme
+- des types sommes
+- des tuples
+- des clotures (applications partielles, déclarations de fonctions avec un environement)
+- du pattern matching
+- un backend en C, avec pour objectif ultime un backend llvm.
+et quelques passes de compilations additionnelles :
+- transformation des variables et champs en entiers
+- && et || lazy
+- de l'inline sur les variables du backend
+
+# Dépendances
 Pour ceux qui ne connaissent pas ocaml, il faut installer opam, le configurer, installer dune, menhir, et coté IDE, j'ai codé sous emacs avec merlin.
 
-Le projet permet de parser, typer, évaluer, compiler un micro-caml très simple. C'est inspiré du projet étudant d'un ami, mais son projet à lui restait très primitif. Je suis donc parti sur un micro-caml qui permet du polymorphisme, des types sommes, du pattern matching, avec un backend llvm.
-
+# Hiérarchie
 dossiers :
 - bin/main.ml (* fichier d'entrée qui parse les arguments et lance la compilation*)
 - runtime/rt.c (* code C de la runtime *)
@@ -21,7 +33,7 @@ dossiers :
 - lib/backendCPrinter.ml (* écriture du code C à partir de l'AST final *)
 - lib/passes.ml (* gestion globale du pipeline des passes *)
 
-QUICK START
+# QUICK START
 build runtime (normalement on a pas besoin de ça) :
 ```
 dune build runtime/libruntime.a
@@ -41,7 +53,7 @@ OCAMLRUNPARAM=b dune exec -- bin/main.exe test/t02.ml
 
 Ajout de l'option --debug <nom de la passe> pour pouvoir afficher un AST intermédiaire (utile pour le debug. Les passes dispo sont dans le fichier lib/passes.ml)
 
-## Lib
+# Lib
 module Pp : utilitaires pour les Printers
 module Applicative (map, fold, foldmap, accumule) : opérateurs de parcours de type récursif
 module ListApp : un fonctor pour parcourrir une liste avec une applicative
