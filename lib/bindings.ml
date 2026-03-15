@@ -4,13 +4,13 @@ module Make(B:Bindings)(BTarget:Ast.FreshableBindings) :
 sig
   type acc
   val passe : (acc,
-               ('a, 'b, 'c, 'd, 'e, B.t) Ast.TopLvl.decl,
-               ('a, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) passe
+               (Ast.Loc.t, 'b, 'c, 'd, 'e, B.t) Ast.TopLvl.decl,
+               (Ast.Loc.t, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) passe
   val debug : (Format.formatter -> 'field -> unit) ->
               (Format.formatter -> 'tyvar -> unit) ->
               (Format.formatter -> 'tybinding -> unit) ->
               Format.formatter ->
-              ('a, 'b, 'tyvar, 'tybinding, 'field, BTarget.t) Ast.TopLvl.decl -> unit
+              (Ast.Loc.t, 'b, 'tyvar, 'tybinding, 'field, BTarget.t) Ast.TopLvl.decl -> unit
 end = struct
 
   type acc = BTarget.t B.Map.t * BTarget.t
@@ -25,23 +25,23 @@ end = struct
   let process e acc =
   let open Expr.Fixed in
   let open Expr.Fixable in
-  let acc, e = Traverse.foldmap (fun fin gin tra acc e ->
+  let acc, e = Traverse.decorate_foldmap (fun fin gin tra acc d e ->
      match e with
      | Lambda (binding, in_) ->
         let ibinding, acc' = stringmap_add acc binding in
         let acc, in_ = fin in_ acc' |> jf acc in
-        acc, Lambda (ibinding, in_)
+        acc, d, Lambda (ibinding, in_)
      | LetIn (binding, def, in_) ->
         let acc, def = fin def acc |> jf acc in
         let ibinding, acc' = stringmap_add acc binding in
         let acc, in_ = fin in_ acc' |> jf acc in
-        acc, LetIn (ibinding, def, in_)
+        acc, d, LetIn (ibinding, def, in_)
      | LetRecIn (binding, def, in_) ->
         let ibinding, acc' = stringmap_add acc binding in
         let acc'', def = fin def acc' |> jf acc in
         let acc' = justfresh acc'' acc' in
         let acc, in_ = fin in_ acc' |> jf acc in
-        acc, LetRecIn (ibinding, def, in_)
+        acc, d, LetRecIn (ibinding, def, in_)
      | PatternMatch (a, li) ->
         let acc, a = fin a acc |> jf acc in
         let acc, li = List.fold_left_map (fun acc (pattern, expr) ->
@@ -49,21 +49,18 @@ end = struct
                         let acc, expr = fin expr acc' |> jf acc in
                         acc, (pattern, expr)
                       ) acc li in
-        acc, PatternMatch (a, li)
-     | x ->
-        tra x acc
-               )
-               (fun _fin tra acc p ->
+        acc, d, PatternMatch (a, li)
+     | x -> let acc, x = tra x acc in acc, d, x)
+               (fun _fin tra acc d p ->
                  match p with
                  | Expr.Pattern.Var binding ->
                     let ibinding, acc' = stringmap_add acc binding in
-                    acc', Expr.Pattern.Var ibinding
-                 | _ ->  tra p acc)
-               (fun x acc -> acc, x)
-               (fun binding ((map, _) as acc) ->
-(*                 Format.printf "search %a in %a@\n" B.pp binding (Lib.Pp.assoc B.pp BTarget.pp) (BMap.to_list map); *)
-                 (* TODO gérer l'erreur *)
-                 acc, B.Map.find binding map)
+                    acc', d, Expr.Pattern.Var ibinding
+                 | _ ->  let acc, x = tra p acc in acc, d, x)
+               (fun _d x acc -> acc, x)
+               (fun location binding ((map, _) as acc) -> match B.Map.find_opt binding map with
+                                                 | None -> Lib.Pp.failwith "unbound value %a at %a" B.pp binding Ast.Loc.pp location
+                                                 | Some s -> acc, s)
                e
              acc
   in acc, e

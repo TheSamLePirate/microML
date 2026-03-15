@@ -22,6 +22,8 @@ TESTING MAIN
     -help  Display this list of options
     --help  Display this list of options
 compile pas :
+  $ nocompile t_bindings.ml
+  2
   $ nocompile t_notype0.ml
   2
   $ nocompile t_notype1.ml

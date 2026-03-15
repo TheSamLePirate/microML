@@ -344,7 +344,8 @@ end = struct
   let ty_expr fin _gin _tra (env:env) location e = ty_expr location (fun a b -> fin b a) e env
 
   let process e env =
-    let env, e = Expr.Fixed.Traverse.decorate_foldmap ty_expr (fun _ -> assert false) Lib.idacc Lib.idacc e env in
+    let env, e = Expr.Fixed.Traverse.decorate_foldmap ty_expr (fun _ -> assert false)
+                   Lib.didacc Lib.didacc e env in
     (* Format.printf "env=%a@\n" ppenv env; *)
     let app (loc, ty) _ =
       let ty = apply_ty env ty in

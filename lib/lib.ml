@@ -1,6 +1,7 @@
 let id x = x
 let passacc _ acc = acc
 let idacc x acc = acc, x
+let didacc _d x acc = acc, x
 
 let ( << ) f g x = f (g x)
 let ( >> ) g f x = f (g x)
@@ -315,18 +316,20 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
 
   module Traverse = struct
     let rec decorate_foldmap_u f g h (G (d, x)) acc =
-      let acc, d, x = f (decorate_foldmap_u f g h) (SurfaceG.foldmap (decorate_foldmap_u f g h) g h) acc d x in
+      let acc, d, x = f (decorate_foldmap_u f g h) (SurfaceG.foldmap (decorate_foldmap_u f g h) (g d) (h d)) acc d x in
       acc, G (d, x)
     let rec decorate_foldmap f g h i (F (d, x)) acc =
       let fin = decorate_foldmap f g h i in
       let gin = decorate_foldmap_u g h i in
-      let acc, d, x = f fin gin (SurfaceF.foldmap fin gin h i) acc d x in
+      let acc, d, x = f fin gin (SurfaceF.foldmap fin gin (h d) (i d)) acc d x in
       acc, F (d, x)
+
+    let wraphi f _d x acc = f x acc
 
     let wrapu f fin tra acc d x = let a, b = f fin tra acc x in a, d, b
     let wrap f fin gin tra acc d x = let a, b = f fin gin tra acc x in a, d, b
-    let foldmap_u f = decorate_foldmap_u (wrapu f)
-    let foldmap f g = decorate_foldmap (wrap f) (wrapu g)
+    let foldmap_u f g h = decorate_foldmap_u (wrapu f) (wraphi h) (wraphi g)
+    let foldmap f g h i = decorate_foldmap (wrap f) (wrapu g) (wraphi h) (wraphi i)
 
   end
 
