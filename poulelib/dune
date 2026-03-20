@@ -1,0 +1,10 @@
+(library
+ (name poule)
+  (flags (:standard -g))
+ (libraries menhirLib unix miniml))
+
+(menhir
+ (modules parser)
+ (flags --explain))
+
+(ocamllex lexer)
