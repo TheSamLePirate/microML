@@ -3,7 +3,7 @@
 open Ast
 open Ast.Expr
 
-let loc (sp, ep) = { Ast.Loc.startp = sp; Ast.Loc.endp = ep }
+let loc (sp, ep) = { Lib.Loc.startp = sp; Lib.Loc.endp = ep }
 let p loc x = Fixed.fix_u x loc
 let e loc x = Fixed.fix x loc
 let ty loc x = Ty.Fixed.fix x loc
@@ -58,7 +58,7 @@ let mk_ty_app loc atoms =
 
 %token EOF
 
-%type < (Ast.Loc.t, Ast.Loc.t, string, string, string, string) Ast.TopLvl.decl list> main
+%type < (Lib.Loc.t, Lib.Loc.t, string, string, string, string) Ast.TopLvl.decl list> main
 %start main
 
 (* --- Precedences --- *)

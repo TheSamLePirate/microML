@@ -1,10 +1,8 @@
 open Ast
 open Lib
+open Ident
 
 module Make(B:Bindings)(F:Fields) = struct
-
-  module BindingsMap = B.Map
-  module FieldsMap = F.Map
 
   type mlv =
     | Integer of int
@@ -12,10 +10,10 @@ module Make(B:Bindings)(F:Fields) = struct
     | Char of char
     | Tuple of mlv list
     | Construct of F.t * mlv
-    | Record of mlv FieldsMap.t
+    | Record of mlv F.Map.t
     | Lambda of (mlv -> mlv)
     | Cell of mlv option ref
-  and env = mlv BindingsMap.t
+  and env = mlv B.Map.t
 
   let rec eq a b = match a, b with
     | Integer a, Integer b -> a == b
@@ -27,7 +25,7 @@ module Make(B:Bindings)(F:Fields) = struct
        Option.map (fun li -> List.fold_left (fun acc ((n1, e1), (n2, e2)) ->
                                  acc && F.equal n1 n2 && eq e1 e2
                                ) true li)
-         (Lib.zip_opt (FieldsMap.to_list l1) (FieldsMap.to_list l2))
+         (Lib.zip_opt (F.Map.to_list l1) (F.Map.to_list l2))
        |> Option.value ~default:false
     | _ -> false
   let rec pp f = function
@@ -36,7 +34,7 @@ module Make(B:Bindings)(F:Fields) = struct
   | Char c -> Format.fprintf f "%C" c
   | Tuple li -> Format.fprintf f "(%a)" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") pp ) li
   | Construct (a, b) -> Format.fprintf f "%a %a" F.pp a pp b
-  | Record li -> Format.fprintf f "{%a}" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (FieldsMap.to_list li)
+  | Record li -> Format.fprintf f "{%a}" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (F.Map.to_list li)
   | Lambda _ -> Format.fprintf f "<fun>"
   | Cell r -> match !r with
               | Some r -> Format.fprintf f "Cell(%a)" pp r
@@ -55,7 +53,7 @@ let rec uncell f = function
   module E = Expr.Fixable
 
   let mapp = function
-      | Expr.Pattern.Var v -> fun env e -> Some (BindingsMap.add v e env)
+      | Expr.Pattern.Var v -> fun env e -> Some (B.Map.add v e env)
       | Expr.Pattern.Tuple li -> fun env e ->
                             List.fold_left (fun opt_env (pat, e) ->
                                 Option.bind opt_env (fun env -> pat env e))
@@ -81,9 +79,9 @@ let rec uncell f = function
     | E.Construct (b, a) -> fun env -> Construct (b, a env)
     | E.PatternMatch (a, li) ->
        fun env -> apply_patterns (a env) env li
-    | E.Record li -> fun env -> Record (List.fold_left (fun map (field, a) -> FieldsMap.add field (a env) map) FieldsMap.empty li)
-    | E.AccessRecord (a, f) -> fun env -> FieldsMap.find f (record (a env))
-    | E.Var c -> BindingsMap.find c
+    | E.Record li -> fun env -> Record (List.fold_left (fun map (field, a) -> F.Map.add field (a env) map) F.Map.empty li)
+    | E.AccessRecord (a, f) -> fun env -> F.Map.find f (record (a env))
+    | E.Var c -> B.Map.find c
     | E.BinOp (a, Expr.Add, b) -> fun env -> Integer (integer (a env) + integer (b env))
     | E.BinOp (a, Expr.Sub, b) -> fun env -> Integer (integer (a env) - integer (b env))
     | E.BinOp (a, Expr.Mul, b) -> fun env -> Integer (integer (a env) * integer (b env))
@@ -98,13 +96,13 @@ let rec uncell f = function
     | E.BinOp (a, Expr.Neq, b) -> fun env -> Bool (not (eq (a env) (b env)))
     | E.UnOp (Expr.Neg, a) -> fun env -> Integer (- integer (a env))
     | E.UnOp (Expr.Not, a) -> fun env -> Bool (not (bool (a env)))
-    | E.LetIn (c, a, b) -> fun env -> b (BindingsMap.add c (a env) env)
-    | E.Lambda (c, a) -> fun env -> Lambda ( fun b -> a (BindingsMap.add c b env))
+    | E.LetIn (c, a, b) -> fun env -> b (B.Map.add c (a env) env)
+    | E.Lambda (c, a) -> fun env -> Lambda ( fun b -> a (B.Map.add c b env))
     | E.IfThenElse (a, b, c) -> fun env -> if bool(a env) then b env else c env
     | E.Apply (a, b) -> fun env -> (lambda (a env)) (b env)
     | E.LetRecIn (c, a, b) -> fun env ->
                               let cell = ref None in
-                              let env' = BindingsMap.add c (Cell cell) env in
+                              let env' = B.Map.add c (Cell cell) env in
                               let v = a env' in
                               (match v with
                                | Lambda _ -> cell := Some v
@@ -120,13 +118,13 @@ let rec uncell f = function
        begin match key with
        | "prim_print_int_clot" ->
           let value = Lambda (fun v -> Format.printf "%d" (integer v); Tuple []) in
-          BindingsMap.add binding value env, Tuple []
+          B.Map.add binding value env, Tuple []
        | _ -> Lib.Pp.failwith "no external %S" key
        end
     | Ast.TopLvl.TypeDecl (_, _, _) -> env, Tuple []
     | Ast.TopLvl.LetRec( binding, expr) ->
        let cell = ref None in
-       let env' = BindingsMap.add binding (Cell cell) env in
+       let env' = B.Map.add binding (Cell cell) env in
        let v = compile expr env' in
        let () = match v with
          | Lambda _ -> cell := Some v
@@ -134,9 +132,9 @@ let rec uncell f = function
        in env', v
     | Ast.TopLvl.Let (binding, expr) ->
        let value = compile expr env in
-       let env = BindingsMap.add binding value env in env, value
+       let env = B.Map.add binding value env in env, value
 
-  let passe = { Ast.init = BindingsMap.empty;
+  let passe = { Ast.init = B.Map.empty;
                 Ast.process = compile
               }
 

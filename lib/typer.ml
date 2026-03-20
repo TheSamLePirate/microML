@@ -2,19 +2,19 @@ open Ast
 
 let tf location x = Ty.Fixed.fix x location
 
-module Make(B:Bindings)(BTyVar:Bindings)(BTyNamed:Bindings)(BT:FreshableBindings)(F:Fields) :
+module Make(B:Ident.Bindings)(BTyVar:Ident.Bindings)(BTyNamed:Ident.Bindings)(BT:Ident.FreshableBindings)(F:Ident.Fields) :
 sig
   type 'a ty = ('a, F.t, BT.t, BTyNamed.t) Ty.Fixed.t
 
   type acc
   val passe : (acc,
-               (Ast.Loc.t, Ast.Loc.t,
+               (Lib.Loc.t, Lib.Loc.t,
                 BTyVar.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl,
-               (Ast.Loc.t * Ast.Loc.t ty, Ast.Loc.t,
+               (Lib.Loc.t * Lib.Loc.t ty, Lib.Loc.t,
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl) passe
-  val debug : Format.formatter -> (Ast.Loc.t * Ast.Loc.t ty, Ast.Loc.t,
+  val debug : Format.formatter -> (Lib.Loc.t * Lib.Loc.t ty, Lib.Loc.t,
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl -> unit
 
@@ -26,13 +26,13 @@ end = struct
 
   type scheme = {
       vars : BT.t list;
-      body : Ast.Loc.t ty;
+      body : Lib.Loc.t ty;
     }
   type env = {
       fresh : BT.t;
       bindings : scheme B.Map.t;
-      tybindings : Ast.Loc.t ty BT.Map.t;
-      ty_named : (BT.t list * Ast.Loc.t ty) BTyNamed.Map.t;
+      tybindings : Lib.Loc.t ty BT.Map.t;
+      ty_named : (BT.t list * Lib.Loc.t ty) BTyNamed.Map.t;
       fieldmap : BTyNamed.t F.Map.t
     }
   type acc = env
@@ -69,7 +69,7 @@ end = struct
     let typevar =  Ty.Var tv |> tf location in
     env, typevar
 
-  let instantiate (env:env) tyvars (ty : Ast.Loc.t ty) =
+  let instantiate (env:env) tyvars (ty : Lib.Loc.t ty) =
     let (env, assocvars), nvars = List.fold_left_map (fun (env, assocvars) var ->
                              let env, var' = fresh'var env in
                              (env, BT.Map.add var var' assocvars), var') (env, BT.Map.empty) tyvars in
@@ -148,7 +148,7 @@ end = struct
     | _ ->
        Lib.Pp.failwith "@\nCannot unify @[<v>%a@\nvs :@\n%a@]@\n(location %a)@\n"
          ppty (tf location t1) ppty (tf location t2)
-         Ast.Loc.pp location
+         Lib.Loc.pp location
 
   let canonique_pattern location env t =
     Ty.Fixed.Deep.foldmap (fun env ty ->

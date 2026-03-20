@@ -113,7 +113,7 @@ type ('deco, 'fun_id, 'var) program = {
 }
 
 
-module Make(B:Ast.Bindings)(BT:Ast.FreshableBindings) = struct
+module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
 
   type env = {
       natives : string B.Map.t;

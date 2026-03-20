@@ -8,9 +8,6 @@ let ( >> ) g f x = f (g x)
 
 let (--) a b = Seq.init (b - a) (fun x -> x + a) |> List.of_seq
 
-
-module StringMap = Map.Make(String)
-
 let zip_opt xs ys =
   let rec aux acc xs ys =
     match xs, ys with
@@ -134,6 +131,18 @@ module type Fixable4 = sig
   end
 end
 
+module type Fixable5 = sig
+  type ('a, 'b, 'c, 'd, 'e) t
+  val pp : (Format.formatter -> 'a -> unit) ->
+           (Format.formatter -> 'b -> unit) ->
+           (Format.formatter -> 'c -> unit) ->
+           (Format.formatter -> 'd -> unit) ->
+           (Format.formatter -> 'e -> unit) ->
+           Format.formatter -> ('a, 'b, 'c, 'd, 'e) t -> unit
+  module Make : functor (F:Applicative) -> sig
+    val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('e -> 're F.t) -> ('a, 'b, 'c, 'd, 'e) t -> ('ra, 'rb, 'rc, 'rd, 're) t F.t
+  end
+end
 
 module MakeSurface3 (F : Fixable3) = struct
   let fold (type acc) x =
@@ -149,6 +158,19 @@ module MakeSurface3 (F : Fixable3) = struct
 end
 
 module MakeSurface4 (F : Fixable4) = struct
+  let fold (type acc) x =
+    let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
+    Fold.foldmap x
+  let map x =
+    let module Map = F.Make(Applicatives.Map) in
+    Map.foldmap x
+  let foldmap (type acc) x =
+    let module FoldMap = Applicatives.FoldMap(struct type t = acc end) in
+    let module M = F.Make(FoldMap) in
+    M.foldmap x
+end
+
+module MakeSurface5 (F : Fixable5) = struct
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
     Fold.foldmap x
@@ -253,6 +275,50 @@ module Fix4 (F : Fixable4) = struct
   let pp ppb ppc ppd f p = pp ppb ppc ppd p f
 end
 
+
+module Fix5 (F : Fixable5) = struct
+  type ('deco, 'a, 'b, 'c, 'd) t = F of 'deco * (('deco, 'a, 'b, 'c, 'd) t, 'a, 'b, 'c, 'd) F.t
+
+  let decoration (F (d, _)) = d
+  let fix a d = F (d, a)
+  let unfix (F (_, a)) = a
+  let wrap_acc f (F (deco, x)) acc =
+    let acc, x = f x acc in acc, F (deco, x)
+
+  module MakeApp (A:Applicative) = struct
+    open A
+    module S = F.Make(A)
+    let rec foldmap f g h i (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g h i) f g h i x
+  end
+
+  module Surface = MakeSurface5(F)
+
+  module Deep = struct
+    let rec mapfg f g h i (F (d, x)) = F (d, Surface.map (mapfg f g h i) f g h i x)
+    let rec foldfg f g h i (F (_, x)) acc = Surface.fold (foldfg f g h i) f g h i x acc
+    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id id id x)
+    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id id id x))
+    let rec foldmap f (F (d, x)) acc =
+      let acc, x = Surface.foldmap (foldmap f) idacc idacc idacc idacc x acc in
+      let acc, tofix = f acc x in
+      acc, F( d, tofix)
+    let rec foldmapfghi f g h i (F (d, x)) acc =
+      let acc, x = Surface.foldmap (foldmapfghi f g h i) f g h i x acc in
+      acc, F( d, x)
+    let rec exists f (F (_, x)) =
+      f x || Surface.fold (fun x acc -> acc || exists f x) passacc passacc passacc passacc x false
+  end
+
+  module Traverse = struct
+    let rec foldmap f g h i (F (d, x)) acc =
+      let acc, x = f (foldmap f g h i) (Surface.foldmap (foldmap f g h i) g h) acc x in
+      acc, F (d, x)
+  end
+
+  let pp ppb ppc ppd ppe = Deep.reduce (fun x f -> F.pp (fun f g -> g f) ppb ppc ppd ppe f x)
+  let pp ppb ppc ppd ppe f p = pp ppb ppc ppd ppe p f
+end
+
 (* Quand un type récursif inclue un autre type récursif et qu'ils partagent deux variables de polymorphisme *)
 module FixMut  (F : Fixable4) (G : Fixable3) = struct
 
@@ -340,5 +406,16 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
                  (fun p f -> G.pp (fun f x -> x f) ppb ppc f p)
 
   let pp ppb ppc f p = pp ppb ppc p f
+
+end
+
+module Loc = struct
+  type t = { startp : Lexing.position; endp : Lexing.position }
+  let pp f l =
+    let sp = l.startp and ep = l.endp in
+    Format.fprintf f "<%s>%d:%d-%d:%d"
+      l.startp.pos_fname
+      sp.pos_lnum (sp.pos_cnum - sp.pos_bol)
+      ep.pos_lnum (ep.pos_cnum - ep.pos_bol)
 
 end

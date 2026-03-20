@@ -1,16 +1,5 @@
 open Lib
 
-module Loc = struct
-  type t = { startp : Lexing.position; endp : Lexing.position }
-  let pp f l =
-    let sp = l.startp and ep = l.endp in
-    Format.fprintf f "<%s>%d:%d-%d:%d"
-      l.startp.pos_fname
-      sp.pos_lnum (sp.pos_cnum - sp.pos_bol)
-      ep.pos_lnum (ep.pos_cnum - ep.pos_bol)
-
-end
-
 module Ty = struct
   type ('a, 'b, 'c, 'd) tofix =
     Integer | Char | Bool
@@ -206,29 +195,4 @@ type ('acc, 'from, 'target ) passe = {
     init : 'acc;
     process :  'acc -> 'from -> 'acc * 'target
   }
-
-module type Bindings = sig
-  include Map.OrderedType
-  module Map : Map.S with type key = t
-  module Set : Set.S with type elt = t
-  val pp : Format.formatter -> t -> unit
-  val equal : t -> t -> bool
-end
-module type Fields = sig
-  include Map.OrderedType
-  module Map : Map.S with type key = t
-  module Set : Set.S with type elt = t
-  val pp : Format.formatter -> t -> unit
-  val equal : t -> t -> bool
-end
-module type FreshableFields = sig
-  include Fields
-  val init : t
-  val next : t -> t
-end
-module type FreshableBindings = sig
-  include Bindings
-  val init : t
-  val next : t -> t
-end
 

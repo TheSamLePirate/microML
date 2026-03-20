@@ -1,4 +1,4 @@
-module Make(B:Ast.Bindings) = struct
+module Make(B:Ident.Bindings) = struct
 
   module M = AstBackend.Fixable.Make(Lib.Applicatives.Map)
 

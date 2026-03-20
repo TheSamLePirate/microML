@@ -1,41 +1,5 @@
 open Lib
-
-module StringBindings : Ast.Bindings with type t = string = struct
-  include String
-  module Map = Map.Make(String)
-  module Set = Set.Make(String)
-  let pp = Pp.string
-end
-module IntBindings : Ast.FreshableBindings with type t = int = struct
-  include Int
-  module Map = Map.Make(Int)
-  module Set = Set.Make(Int)
-  let pp f i = Format.fprintf f "v%d" i
-  let init = 0
-  let next n = n + 1
-end
-module IntTypesBindings : Ast.FreshableBindings with type t = int = struct
-  include Int
-  module Map = Map.Make(Int)
-  module Set = Set.Make(Int)
-  let pp = Ast.Ty.pp_tyvar
-  let init = 0
-  let next n = n + 1
-end
-module StringFields : Ast.Fields with type t = string = struct
-  include String
-  module Map = Map.Make(String)
-  module Set = Set.Make(String)
-  let pp = Pp.string
-end
-module IntFields : Ast.FreshableFields with type t = int = struct
-  include Int
-  module Map = Map.Make(Int)
-  module Set = Set.Make(Int)
-  let pp f i = Format.fprintf f "f%d" i
-  let init = 0
-  let next n = n + 1
-end
+open Ident
 
 module Bindings = Bindings.Make(StringBindings)(IntBindings)
 module Fields = Fields.Make(StringFields)(IntFields)

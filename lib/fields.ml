@@ -3,7 +3,7 @@ open Lib
 
 (* module de conversion de fields à partir du type B.t vers BTarget.t *)
 
-module Make(B:Fields)(BTarget:Ast.FreshableFields) = struct
+module Make(B:Ident.Fields)(BTarget:Ident.FreshableFields) = struct
 
   type acc = BTarget.t B.Map.t * BTarget.t
 

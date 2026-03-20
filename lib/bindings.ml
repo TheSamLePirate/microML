@@ -1,16 +1,16 @@
 open Ast
 
-module Make(B:Bindings)(BTarget:Ast.FreshableBindings) :
+module Make(B:Ident.Bindings)(BTarget:Ident.FreshableBindings) :
 sig
   type acc
   val passe : (acc,
-               (Ast.Loc.t, 'b, 'c, 'd, 'e, B.t) Ast.TopLvl.decl,
-               (Ast.Loc.t, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) passe
+               (Lib.Loc.t, 'b, 'c, 'd, 'e, B.t) Ast.TopLvl.decl,
+               (Lib.Loc.t, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) passe
   val debug : (Format.formatter -> 'field -> unit) ->
               (Format.formatter -> 'tyvar -> unit) ->
               (Format.formatter -> 'tybinding -> unit) ->
               Format.formatter ->
-              (Ast.Loc.t, 'b, 'tyvar, 'tybinding, 'field, BTarget.t) Ast.TopLvl.decl -> unit
+              (Lib.Loc.t, 'b, 'tyvar, 'tybinding, 'field, BTarget.t) Ast.TopLvl.decl -> unit
 end = struct
 
   type acc = BTarget.t B.Map.t * BTarget.t
@@ -59,7 +59,7 @@ end = struct
                  | _ ->  let acc, x = tra p acc in acc, d, x)
                (fun _d x acc -> acc, x)
                (fun location binding ((map, _) as acc) -> match B.Map.find_opt binding map with
-                                                 | None -> Lib.Pp.failwith "unbound value %a at %a" B.pp binding Ast.Loc.pp location
+                                                 | None -> Lib.Pp.failwith "unbound value %a at %a" B.pp binding Lib.Loc.pp location
                                                  | Some s -> acc, s)
                e
              acc

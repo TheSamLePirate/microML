@@ -1,6 +1,6 @@
 open AstBackend
 
-module Make(B:Ast.Bindings) = struct
+module Make(B:Ident.Bindings) = struct
 
   let pp_atom f = function
     | Fixable.Native n -> Format.fprintf f "%s" n
