@@ -18,6 +18,7 @@ module Term = struct
     end
   end
   module Fixed = Miniml.Lib.Fix4(Fixable)
+  let fix loc node = Fixed.fix node loc
 end
 
 module Ty = struct
@@ -40,7 +41,7 @@ module Ty = struct
     end
   end
   module Fixed = Miniml.Lib.Fix3(Fixable)
-  let fix a = Fixed.fix a ()
+  let fix loc node = Fixed.fix node loc
 end
 
 module Formula = struct
@@ -81,7 +82,7 @@ module Formula = struct
     end
   end
   module Fixed = Miniml.Lib.Fix5(Fixable)
-  let fix a = Fixed.fix a ()
+  let fix loc node = Fixed.fix node loc
 end
 module ProofTerm = struct
   module Fixable = struct
@@ -154,7 +155,7 @@ module ProofTerm = struct
 
   end
   module Fixed = Miniml.Lib.Fix5(Fixable)
-  let fix a = Fixed.fix a ()
+  let fix loc node = Fixed.fix node loc
 end
 
 module TopLevel = struct
@@ -188,17 +189,19 @@ module TopLevel = struct
       }
 end
 
-module type Prog = sig
-  module Var : Miniml.Ident.Bindings
-  module Constr : Miniml.Ident.Fields
-  module Funsym : Miniml.Ident.Bindings
-
-  type deco
-  type pred
+module Prog
+         (V : Miniml.Ident.Bindings)
+         (C : Miniml.Ident.Fields)
+         (F : Miniml.Ident.Bindings)
+         (A : sig type deco type pred end)
+  = struct
+  module Var = V
+  module Constr = C
+  module Funsym = F
+  type deco = A.deco
+  type pred = A.pred
   type ty = (deco, Funsym.t, Var.t) Ty.Fixed.t
   type term = (deco, Var.t, Constr.t, Funsym.t) Term.Fixed.t
   type formula = (deco, ty, Var.t, term, pred) Formula.Fixed.t
   type proof = (deco, formula, ty, term, Var.t) ProofTerm.Fixed.t
-
-  type program
 end
