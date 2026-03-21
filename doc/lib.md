@@ -1,0 +1,20 @@
+
+# Lib
+module Loc : position dans le fichier (utilisé par les parsers)
+module Pp : utilitaires pour les Printers
+module Applicative (map, fold, foldmap, accumule) : opérateurs de parcours de type récursif
+module ListApp : un fonctor pour parcourrir une liste avec une applicative
+module type Fixable3 : AST récursif, avec 3 variables (dont une pour la récursion)
+module type Fixable4 : AST récursif, avec 3 variables (dont une pour la récursion)
+module Fix3 (F : Fixable3) et
+module Fix4 (F : Fixable4) : génère le type fixé, et les méthodes de parcours en surface ou en profondeur
+module FixMut  (F : Fixable4) (G : Fixable3) : Quand un type Fixbale4 a comme variable secondaire, un Fixable3.
+
+Les Fix3, Fix4 et FixMut génèrent des sous modules : Surface, Deep, Traverse, et une fonction pp.
+les types fixés ont un décorateur, ce qui permet d'accrocher une information (type, bindingMap, etc...) à chaque noeud.
+
+Ces trois functors permettent de n'avoir quasiment rien à écrire pour chaque AST (on a un AST de type, de patterns, d'expressions, et de backend bas niveau) : on écrit un pretty printer (avec le module Format) et une méthode de parcours en surface par une Applicative, et c'est tout. Ensuite, ces functors génèrent les mêmes méthodes de parcours pour chaque AST. Grosse factorisation de code.
+
+Les modules Fix permettent d'ajouter un polymorphisme supplémentaire à chaque noeud, c'est ce qu'on nomme une décoration. Le parseur produit un AST décoré par des locations (les positions dans les fichiers) ensuite, cette décoration change : le typeur permet de la transformer en location * type. Ainsi chaque expression est reliée à un type. L'alternative à cette solution est d'avoir un int qui se colle à chaque noeud, et une intmap produite par le typer. Le problème avec cette méthode c'est qu'on perd les garanties : on est plus certain qu'un type est sur une expression. Par contre on gagne en souplesse, on peut créer des noeuds sans les typer, ou réordonner des passes. Mais le typage pour moi est une garantie importante.
+
+Grâce à ce module, la plupart des passes de compilation sont soit des traverse, soit des reduce, soit des foldmap. Fixed.Deep est toujours utilisé pour lancer une réécriture. La limite c'est quand on a trop d'AST imbriqués les uns dans les autres, avec des ('a, 'b, 'c) t et 'c u avec 'a = ('a, 'b, 'c) t, et 'b = 'c u, en garant le même 'c. Chaque fois qu'on a des choses imbriquées différement, il faut rajouter un foncteur dans Lib. Mais l'idée c'est que si on devait coder une toolchain du genre llvm, alors on aurait une vingtaine de frontends, et une dizaine d'Ast pour des langages intermédiaires, et de backends qui seraient probablement reliées à assez peu de Fix ou FixMut, ce qui offrirait une grande cohérence sur les méthodes de parcours.
