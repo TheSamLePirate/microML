@@ -1,9 +1,11 @@
+module Loc = LibCore.Lib.Loc
+module Ident = LibCore.Ident
 module ParsedProg =
   PouleAst.Prog
-    (Miniml.Ident.StringBindings)
-    (Miniml.Ident.StringBindings)
-    (Miniml.Ident.StringBindings)
+    (Ident.StringBindings)
+    (Ident.StringBindings)
+    (Ident.StringBindings)
     (struct
-       type deco = Miniml.Lib.Loc.t
+       type deco = Loc.t
        type pred = string
      end)

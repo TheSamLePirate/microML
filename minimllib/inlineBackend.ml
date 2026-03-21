@@ -1,12 +1,15 @@
-module Make(B:Ident.Bindings) = struct
+module type Bindings = LibCore.Ident.Bindings
 
-  module M = AstBackend.Fixable.Make(Lib.Applicatives.Map)
+module Pp = LibCore.Lib.Pp
+module Make(B:Bindings) = struct
+
+  module M = AstBackend.Fixable.Make(LibCore.Lib.Applicatives.Map)
 
   let foldatm acc atm = match atm with
     | AstBackend.Fixable.Var v -> Option.value (B.Map.find_opt v acc) ~default:atm
     | _ -> atm
 
-  let foldrhs acc rhs = M.foldmap_rhs (fun () atm -> foldatm acc atm) Lib.id () rhs
+  let foldrhs acc rhs = M.foldmap_rhs (fun () atm -> foldatm acc atm) Fun.id () rhs
 
   let foldt body acc = AstBackend.Fixed.Traverse.foldmap (fun fin _tra acc e ->
      match e with
@@ -51,12 +54,12 @@ module Make(B:Ident.Bindings) = struct
 
   let pp_fun f func = Format.fprintf f "function %a(%a){@\n@[<v2>  %a@]@\n}"
                         B.pp func.AstBackend.id
-                        (Lib.Pp.list (Lib.Pp.sep ", ") B.pp) func.AstBackend.args
+                        (Pp.list (Pp.sep ", ") B.pp) func.AstBackend.args
                         (AstBackend.Fixed.pp B.pp B.pp) func.AstBackend.body
 
   let debug f prog =
      Format.fprintf f "%a@\n%a@\n"
-       (Lib.Pp.list (Lib.Pp.sep "@\n") pp_fun) prog.AstBackend.functions
-       (Lib.Pp.list (Lib.Pp.sep "@\n") (fun f (var, body) -> Format.fprintf f "%a=@\n@[<v2>  %a@]" B.pp var (AstBackend.Fixed.pp B.pp B.pp) body)) prog.AstBackend.entry
+       (Pp.list (Pp.sep "@\n") pp_fun) prog.AstBackend.functions
+       (Pp.list (Pp.sep "@\n") (fun f (var, body) -> Format.fprintf f "%a=@\n@[<v2>  %a@]" B.pp var (AstBackend.Fixed.pp B.pp B.pp) body)) prog.AstBackend.entry
 
 end

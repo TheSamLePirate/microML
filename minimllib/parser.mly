@@ -2,8 +2,9 @@
 (* Adapte ces opens à ton projet *)
 open Ast
 open Ast.Expr
+open LibCore.Lib
 
-let loc (sp, ep) = { Lib.Loc.startp = sp; Lib.Loc.endp = ep }
+let loc (sp, ep) = { LibCore.Lib.Loc.startp = sp; LibCore.Lib.Loc.endp = ep }
 let p loc x = Fixed.fix_u x loc
 let e loc x = Fixed.fix x loc
 let ty loc x = Ty.Fixed.fix x loc
@@ -24,9 +25,9 @@ let mk_ty_app loc atoms =
       | _ ->
           (* ex: ('a -> 'b) 'c : illégal, ou int int : illégal *)
           (* Choix: erreur de parse ou erreur plus tard *)
-          Lib.Pp.failwith "type application: expected type constructor at end [%a]"
-                          (Lib.Pp.list (fun f () -> Format.fprintf f "; ")
-                                       (Ast.Ty.Fixed.pp Lib.Pp.string Lib.Pp.string Lib.Pp.string)
+          Pp.failwith "type application: expected type constructor at end [%a]"
+                          (Pp.list (fun f () -> Format.fprintf f "; ")
+                                       (Ast.Ty.Fixed.pp Pp.string Pp.string Pp.string)
                           ) atoms
 
 %}
@@ -58,7 +59,7 @@ let mk_ty_app loc atoms =
 
 %token EOF
 
-%type < (Lib.Loc.t, Lib.Loc.t, string, string, string, string) Ast.TopLvl.decl list> main
+%type < (Loc.t, Loc.t, string, string, string, string) Ast.TopLvl.decl list> main
 %start main
 
 (* --- Precedences --- *)

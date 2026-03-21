@@ -1,3 +1,11 @@
+module Pp = LibCore.Lib.Pp
+module type Applicative = LibCore.Lib.Applicative
+module Fix3 = LibCore.Lib.Fix3
+module Fix4 = LibCore.Lib.Fix4
+module Fix5 = LibCore.Lib.Fix5
+module ListApp = LibCore.Lib.ListApp
+module Ident = LibCore.Ident
+
 module Term = struct
   module Fixable = struct
     type ('term, 'var, 'constr, 'funsym) t =
@@ -6,18 +14,18 @@ module Term = struct
       | App of 'funsym * 'term list
     let pp ppterm ppvar ppconstr ppfunsym f = function
       | Var v -> ppvar f v
-      | Constr (c, li) -> Format.fprintf f "%a(%a)" ppconstr c (Miniml.Lib.Pp.list (Miniml.Lib.Pp.sep ", ") ppterm) li
-      | App (funsym, li) -> Format.fprintf f "%a(%a)" ppfunsym funsym (Miniml.Lib.Pp.list (Miniml.Lib.Pp.sep ", ") ppterm) li
-    module Make(F:Miniml.Lib.Applicative) = struct
+      | Constr (c, li) -> Format.fprintf f "%a(%a)" ppconstr c (Pp.list (Pp.sep ", ") ppterm) li
+      | App (funsym, li) -> Format.fprintf f "%a(%a)" ppfunsym funsym (Pp.list (Pp.sep ", ") ppterm) li
+    module Make(F:Applicative) = struct
       open F
-      include Miniml.Lib.ListApp(F)
+      include ListApp(F)
       let foldmap f g h i = function
         | Var v -> ret (fun v -> Var v) <*> g v
         | Constr (constr, li) -> ret (fun constr li -> Constr(constr, li)) <*> h constr <*> fold_left_map f li
         | App (funsym, li) -> ret (fun funsym li -> App(funsym, li)) <*> i funsym <*> fold_left_map f li
     end
   end
-  module Fixed = Miniml.Lib.Fix4(Fixable)
+  module Fixed = Fix4(Fixable)
   let fix loc node = Fixed.fix node loc
 end
 
@@ -28,19 +36,19 @@ module Ty = struct
       | TyVar of 'tyvar
       | TyNamed of 'tyname * 'a list
     let pp ppa pptyname pptyvar f = function
-      | TyArrow (li, a) -> Format.fprintf f "(%a) -> %a" (Miniml.Lib.Pp.list (Miniml.Lib.Pp.sep ", ") ppa) li ppa a
+      | TyArrow (li, a) -> Format.fprintf f "(%a) -> %a" (Pp.list (Pp.sep ", ") ppa) li ppa a
       | TyVar tv -> pptyvar f tv
-      | TyNamed (name, li) -> Format.fprintf f "%a(%a)" pptyname name (Miniml.Lib.Pp.list (Miniml.Lib.Pp.sep ", ") ppa) li
-    module Make(F:Miniml.Lib.Applicative) = struct
+      | TyNamed (name, li) -> Format.fprintf f "%a(%a)" pptyname name (Pp.list (Pp.sep ", ") ppa) li
+    module Make(F:Applicative) = struct
       open F
-      include Miniml.Lib.ListApp(F)
+      include ListApp(F)
       let foldmap f g h = function
           | TyArrow (li, a) -> ret (fun li a -> TyArrow(li, a)) <*> fold_left_map f li <*> f a
           | TyVar var -> ret (fun var -> TyVar var) <*> h var
           | TyNamed (name, li) -> ret (fun name li -> TyNamed (name, li)) <*> g name <*> fold_left_map f li
     end
   end
-  module Fixed = Miniml.Lib.Fix3(Fixable)
+  module Fixed = Fix3(Fixable)
   let fix loc node = Fixed.fix node loc
 end
 
@@ -59,16 +67,16 @@ module Formula = struct
     let pp ppf ppty ppvar ppterm pppred f = function
       | Top -> Format.fprintf f "Top"
       | Bottom -> Format.fprintf f "Bottom"
-      | Pred (p, li) -> Format.fprintf f "%a(%a)" pppred p (Miniml.Lib.Pp.list (Miniml.Lib.Pp.sep ", ") ppterm) li
+      | Pred (p, li) -> Format.fprintf f "%a(%a)" pppred p (Pp.list (Pp.sep ", ") ppterm) li
       | Eq (t1, t2) -> Format.fprintf f "%a = %a" ppterm t1 ppterm t2
       | And (f1, f2) -> Format.fprintf f "%a ∧ %a" ppf f1 ppf f2
       | Or (f1, f2) -> Format.fprintf f "%a ∨ %a" ppf f1 ppf f2
       | Impl (f1, f2) -> Format.fprintf f "%a ⇒ %a" ppf f1 ppf f2
       | Forall (v, ty, f') -> Format.fprintf f "∀ %a : %a . %a" ppvar v ppty ty ppf f'
       | Exists (v, ty, f') -> Format.fprintf f "∃ %a : %a . %a" ppvar v ppty ty ppf f'
-    module Make(F:Miniml.Lib.Applicative) = struct
+    module Make(F:Applicative) = struct
       open F
-      include Miniml.Lib.ListApp(F)
+      include ListApp(F)
       let foldmap f g h i j = function
           | Top -> ret Top
           | Bottom ->  ret Bottom
@@ -81,7 +89,7 @@ module Formula = struct
           | Exists (v, ty, form) -> ret (fun v ty f -> Exists (v, ty, f)) <*> h v <*> g ty <*> f form
     end
   end
-  module Fixed = Miniml.Lib.Fix5(Fixable)
+  module Fixed = Fix5(Fixable)
   let fix loc node = Fixed.fix node loc
 end
 module ProofTerm = struct
@@ -132,9 +140,9 @@ module ProofTerm = struct
 
       | Pack (ty, t, s) -> Format.fprintf f "pack(%a, %a, %a)" pty ty pterm t pp s
       | Unpack (t, v1, v2, s) -> Format.fprintf f "unpack(%a, %a, %a, %a)" pterm t pvar v1 pvar v2 pp s
-    module Make(F:Miniml.Lib.Applicative) = struct
+    module Make(F:Applicative) = struct
       open F
-      include Miniml.Lib.ListApp(F)
+      include ListApp(F)
       let foldmap f g h i j = function
           | Var v -> ret (fun v -> Var v) <*> j v
           | Triv -> ret Triv
@@ -154,7 +162,7 @@ module ProofTerm = struct
     end
 
   end
-  module Fixed = Miniml.Lib.Fix5(Fixable)
+  module Fixed = Fix5(Fixable)
   let fix loc node = Fixed.fix node loc
 end
 
@@ -190,9 +198,9 @@ module TopLevel = struct
 end
 
 module Prog
-         (V : Miniml.Ident.Bindings)
-         (C : Miniml.Ident.Fields)
-         (F : Miniml.Ident.Bindings)
+         (V : Ident.Bindings)
+         (C : Ident.Fields)
+         (F : Ident.Bindings)
          (A : sig type deco type pred end)
   = struct
   module Var = V

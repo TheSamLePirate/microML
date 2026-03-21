@@ -41,7 +41,14 @@ module IntTypesBindings : FreshableBindings with type t = int = struct
   include Int
   module Map = Map.Make(Int)
   module Set = Set.Make(Int)
-  let pp = Ast.Ty.pp_tyvar
+  let chars = [| "α"; "β"; "γ"; "δ"; "ε"; "θ"; "φ"; "ψ"; "ω"; "Ω" |]
+  let lenchars = Array.length chars
+  let pp f i =
+    let ci = i mod lenchars in
+    let ni = i / lenchars in
+    let str = chars.(ci) in
+    if ni = 0 then Format.fprintf f "'%s" str
+    else Format.fprintf f "'%s%d" str ni
   let init = 0
   let next n = n + 1
 end

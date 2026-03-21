@@ -1,4 +1,11 @@
-open Lib
+module Pp = LibCore.Lib.Pp
+module type Applicative = LibCore.Lib.Applicative
+module ListApp = LibCore.Lib.ListApp
+module Fix3 = LibCore.Lib.Fix3
+module Ident = LibCore.Ident
+
+open LibCore.Lib
+let (--) = LibCore.Lib.(--)
 
 module Fixable = struct
 
@@ -133,7 +140,7 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
        | None ->
           match B.Map.find_opt b env.globalMap with
           | Some s -> Fixable.GlobalVar s
-          | None -> Lib.Pp.failwith "binding failed : %a" B.pp b
+          | None -> Pp.failwith "binding failed : %a" B.pp b
 
   let rec unlambda acc expr =
     match Ast.Expr.Fixed.unfix expr with
@@ -177,8 +184,8 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
     | RedLambda (bindings, fun_) -> fun_ bindings None
 
   let print_mat f mat =
-    Lib.Pp.list (Lib.Pp.sep "@\n") (fun f (li, _addon) ->
-        Lib.Pp.list (Lib.Pp.sep " ") (fun f x -> match x with
+    Pp.list (Pp.sep "@\n") (fun f (li, _addon) ->
+        Pp.list (Pp.sep " ") (fun f x -> match x with
                                                  | None -> Format.fprintf f " _ "
                                                  | Some Ast.Expr.Pattern.Tuple _li -> Format.fprintf f "(...) "
                                                  | Some Ast.Expr.Pattern.Var binding -> Format.fprintf f "v%a" B.pp binding
@@ -258,9 +265,9 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
       | [] -> None
       | hd::_tl -> let cols = List.mapi (fun i _ -> i, List.map (fun l -> List.nth l i) mat) hd in
                    let cols = List.map (fun (nth, col) -> (* calcul d'un score par colone *)
-                                  let col = List.filter_map Lib.id col in
+                                  let col = List.filter_map Fun.id col in
                                   let col = List.map pat_tag col in (* que les tags *)
-                                  let col = Lib.group_count (Int.compare) col in
+                                  let col = group_count (Int.compare) col in
                                   let counts = List.map snd col in
                                   let tags = List.map fst col in (* les tags de patterns *)
                                   let score = List.fold_left (fun acc col -> acc * (col + 1)) 1 counts in
@@ -304,7 +311,7 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
     let pat_failed = Fixed.fix Fixable.AssertFalse () in
     let ret binding_out =  Fixed.fix (Fixable.Return binding_out) () in
     let rec compile env vins mat =
-      let env, decl, vins, mat = untuple env Lib.id vins mat in
+      let env, decl, vins, mat = untuple env Fun.id vins mat in
       match discr_col mat with
       | None -> begin match mat with (* TODO ajouter déclarations *)
                   | [] -> env, [], fakevar, (fun _in' -> pat_failed)
@@ -345,7 +352,7 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
        begin match B.Map.find_opt v env.globalMap with
        | None -> RedRes(env, [], id, b_to_atom v env)
        | Some s -> match BT.Map.find_opt s env.arity with
-          | None -> Lib.Pp.failwith "(* bug *) arity not found %a (from : %a)" BT.pp s B.pp v
+          | None -> Pp.failwith "(* bug *) arity not found %a (from : %a)" BT.pp s B.pp v
           | Some 0 -> RedRes(env, [], id, b_to_atom v env)
           | Some arity ->
              let env, c = fresh env in
@@ -516,12 +523,12 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
 
   let pp_fun f func = Format.fprintf f "function %a(%a){@\n@[<v2>  %a@]@\n}"
                         BT.pp func.id
-                        (Lib.Pp.list (Lib.Pp.sep ", ") BT.pp) func.args
+                        (Pp.list (Pp.sep ", ") BT.pp) func.args
                         (Fixed.pp BT.pp BT.pp) func.body
 
   let debug f prog =
      Format.fprintf f "%a@\n%a@\n"
-       (Lib.Pp.list (Lib.Pp.sep "@\n") pp_fun) prog.functions
-       (Lib.Pp.list (Lib.Pp.sep "@\n") (fun f (var, body) -> Format.fprintf f "%a=@\n@[<v2>  %a@]" BT.pp var (Fixed.pp BT.pp BT.pp) body)) prog.entry
+       (Pp.list (Pp.sep "@\n") pp_fun) prog.functions
+       (Pp.list (Pp.sep "@\n") (fun f (var, body) -> Format.fprintf f "%a=@\n@[<v2>  %a@]" BT.pp var (Fixed.pp BT.pp BT.pp) body)) prog.entry
 
 end

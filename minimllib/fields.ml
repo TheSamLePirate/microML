@@ -1,9 +1,8 @@
 open Ast
-open Lib
 
 (* module de conversion de fields à partir du type B.t vers BTarget.t *)
 
-module Make(B:Ident.Fields)(BTarget:Ident.FreshableFields) = struct
+module Make(B:LibCore.Ident.Fields)(BTarget:LibCore.Ident.FreshableFields) = struct
 
   type acc = BTarget.t B.Map.t * BTarget.t
 
@@ -20,16 +19,16 @@ module Make(B:Ident.Fields)(BTarget:Ident.FreshableFields) = struct
     let open Ast.TopLvl in
     match toplvl with
     | TypeDecl (tylist, binding_type, ty) ->
-       let acc, ty = Ty.Fixed.Deep.foldmapfgh process idacc idacc ty acc in
+       let acc, ty = Ty.Fixed.Deep.foldmapfgh process LibCore.Lib.idacc LibCore.Lib.idacc ty acc in
        acc, TypeDecl (tylist, binding_type, ty)
     | Let (binding, expr) ->
-       let acc, expr = Expr.Fixed.Deep.foldmapfg process idacc expr acc in
+       let acc, expr = Expr.Fixed.Deep.foldmapfg process LibCore.Lib.idacc expr acc in
        acc, Let(binding, expr)
     | LetRec( binding, expr) ->
-       let acc, expr = Expr.Fixed.Deep.foldmapfg process idacc expr acc in
+       let acc, expr = Expr.Fixed.Deep.foldmapfg process LibCore.Lib.idacc expr acc in
        acc, LetRec(binding, expr)
     | External (binding, ty, s) ->
-       let acc, ty = Ty.Fixed.Deep.foldmapfgh process idacc idacc ty acc in
+       let acc, ty = Ty.Fixed.Deep.foldmapfgh process LibCore.Lib.idacc LibCore.Lib.idacc ty acc in
        acc, External (binding, ty, s)
 
   let passe = {

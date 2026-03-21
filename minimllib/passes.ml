@@ -1,5 +1,5 @@
-open Lib
-open Ident
+open LibCore.Ident
+module Pp = LibCore.Lib.Pp
 
 module Bindings = Bindings.Make(StringBindings)(IntBindings)
 module Fields = Fields.Make(StringFields)(IntFields)

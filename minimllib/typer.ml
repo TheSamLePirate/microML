@@ -1,4 +1,5 @@
 open Ast
+open LibCore
 
 let tf location x = Ty.Fixed.fix x location
 

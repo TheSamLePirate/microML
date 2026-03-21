@@ -1,10 +1,3 @@
 (library
- (name miniml)
-  (flags (:standard -g))
- (libraries menhirLib unix))
-
-(menhir
- (modules parser)
- (flags --explain))
-
-(ocamllex lexer)
+ (name libCore)
+  (flags (:standard -g)))

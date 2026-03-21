@@ -1,4 +1,5 @@
 open Ast
+open LibCore
 
 module Make(B:Ident.Bindings)(BTarget:Ident.FreshableBindings) :
 sig

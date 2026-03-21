@@ -1,6 +1,7 @@
 open Ast
-open Lib
-open Ident
+open LibCore.Ident
+open LibCore
+module Pp = Lib.Pp
 
 module Make(B:Bindings)(F:Fields) = struct
 

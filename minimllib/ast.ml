@@ -1,3 +1,4 @@
+open LibCore
 open Lib
 
 module Ty = struct
@@ -55,14 +56,6 @@ module Ty = struct
   end
   module Fixed = Fix4(Base)
 
-  let chars = [| "α"; "β"; "γ"; "δ"; "ε"; "θ"; "φ"; "ψ"; "ω"; "Ω" |]
-  let lenchars = Array.length chars
-  let pp_tyvar f i =
-    let ci = i mod lenchars in
-    let ni = i / lenchars in
-    let str = chars.(ci) in
-    if ni = 0 then Format.fprintf f "'%s" str
-    else Format.fprintf f "'%s%d" str ni
 end
 
 module Expr = struct

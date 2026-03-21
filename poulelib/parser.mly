@@ -9,8 +9,8 @@ module Term    = Term
 module Formula = Formula
 module Proof   = ProofTerm
 
-let mk_loc sp ep : Miniml.Lib.Loc.t =
-  { Miniml.Lib.Loc.startp = sp; endp = ep }
+let mk_loc sp ep =
+  { LibCore.Lib.Loc.startp = sp; endp = ep }
 
 let fix_ty sp ep node =
   Ty.fix (mk_loc sp ep) node

@@ -1,4 +1,5 @@
 open AstBackend
+module Pp = LibCore.Lib.Pp
 
 module Make(B:Ident.Bindings) = struct
 
@@ -40,14 +41,14 @@ module Make(B:Ident.Bindings) = struct
     | Fixable.Construct (d, atom) -> Format.fprintf f "construct(%d, %a)" d pp_atom atom
     | Fixable.Destruct (d, atom) -> Format.fprintf f "destruct(%d, %a)" d pp_atom atom
     | Fixable.MakeTuple [] -> Format.fprintf f "make_tuple(0)"
-    | Fixable.MakeTuple(atoms) -> Format.fprintf f "make_tuple(%d, %a)" (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.MakeTuple(atoms) -> Format.fprintf f "make_tuple(%d, %a)" (List.length atoms) (Pp.list (Pp.sep ",@ ") pp_atom) atoms
     | Fixable.Nth (i, atom) -> Format.fprintf f "tuple_nth(%d, %a)" i pp_atom atom
-    | Fixable.MakeRecord(li) -> Format.fprintf f "make_record(%d, %a)" (List.length li) (Lib.Pp.list (Lib.Pp.sep ",@ ") (fun f (field, atom) -> Format.fprintf f "%d, %a" field pp_atom atom)) li
+    | Fixable.MakeRecord(li) -> Format.fprintf f "make_record(%d, %a)" (List.length li) (Pp.list (Pp.sep ",@ ") (fun f (field, atom) -> Format.fprintf f "%d, %a" field pp_atom atom)) li
     | Fixable.Proj(int, atom) -> Format.fprintf f "record_get(%a, %d)" pp_atom atom int
-    | Fixable.CallDirect(funid, atoms) -> Format.fprintf f "%a(%a)" B.pp funid (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
-    | Fixable.CallClosure (atom, atoms) -> Format.fprintf f "clot_call(%a, %d, %a)" pp_atom atom (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.CallDirect(funid, atoms) -> Format.fprintf f "%a(%a)" B.pp funid (Pp.list (Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.CallClosure (atom, atoms) -> Format.fprintf f "clot_call(%a, %d, %a)" pp_atom atom (List.length atoms) (Pp.list (Pp.sep ",@ ") pp_atom) atoms
     | Fixable.MakeClosure (funid, arity, []) -> Format.fprintf f "clot_make(%a_clot, %d, 0)" B.pp funid arity
-    | Fixable.MakeClosure (funid, arity, atoms) -> Format.fprintf f "clot_make(%a_clot, %d, %d, %a)" B.pp funid arity (List.length atoms) (Lib.Pp.list (Lib.Pp.sep ",@ ") pp_atom) atoms
+    | Fixable.MakeClosure (funid, arity, atoms) -> Format.fprintf f "clot_make(%a_clot, %d, %d, %a)" B.pp funid arity (List.length atoms) (Pp.list (Pp.sep ",@ ") pp_atom) atoms
 
 
   let pp_t e f letifopt = match e with
@@ -76,22 +77,22 @@ module Make(B:Ident.Bindings) = struct
   let pp_t f e = pp_t0 e f None
 
   let pp_function f func = Format.fprintf f "MLV %a_clot(MLV args);@\nMLV %a(%a){@\n@[<v 2>  %a@]@\n}@\nMLV %a_clot(MLV args){@\n  return %a(%a);@\n}@\n" B.pp func.id B.pp func.id
-                                 (Lib.Pp.list (Lib.Pp.sep ", ")
+                                 (Pp.list (Pp.sep ", ")
                                     (fun f v -> Format.fprintf f "MLV %a" B.pp v)) func.args
                          pp_t func.body
                          B.pp func.id
                          B.pp func.id
-                         (Lib.Pp.listi (Lib.Pp.sep ", ")
+                         (Pp.listi (Pp.sep ", ")
                             (fun f i v -> Format.fprintf f "args.ptr[%d] /*%a*/" i B.pp v)) func.args
   let pp_entry_decl f (var, _itm) = Format.fprintf f "MLV %a;" B.pp var
   let pp_entry_init f (var, itm) = pp_t0 itm f (Some var)
 
   let process env program =
-    let env = (fun f () -> Lib.Pp.list (Lib.Pp.sep "@\n") pp_entry_init f program.entry) :: env in
+    let env = (fun f () -> Pp.list (Pp.sep "@\n") pp_entry_init f program.entry) :: env in
     env, fun f () ->
     Format.fprintf f "%a@\n%a@\n"
-      (Lib.Pp.list (Lib.Pp.sep "@\n") pp_function) program.functions
-      (Lib.Pp.list (Lib.Pp.sep "@\n") pp_entry_decl) program.entry
+      (Pp.list (Pp.sep "@\n") pp_function) program.functions
+      (Pp.list (Pp.sep "@\n") pp_entry_decl) program.entry
 
   let passe = {
       Ast.init = [ ];
