@@ -2,47 +2,21 @@
 /* parser.mly */
 
 %{
-open PouleAst
-
-module Ty      = Ty
-module Term    = Term
-module Formula = Formula
-module Proof   = ProofTerm
 
 let mk_loc = LibCore.Loc.loc
 
-let fix_ty sp ep node =
-  Ty.fix (mk_loc sp ep) node
+let fix_ty sp ep node = PouleAst.Ty.fix (mk_loc sp ep) node
+let fix_term sp ep node = PouleAst.Term.fix (mk_loc sp ep) node
+let fix_formula sp ep node = PouleAst.Formula.fix (mk_loc sp ep) node
+let fix_proof sp ep node = PouleAst.ProofTerm.fix (mk_loc sp ep) node
+let mk_arrow_ty sp ep args ret = fix_ty sp ep (Fixable.Ty.TyArrow (args, ret))
 
-let fix_term sp ep node =
-  Term.fix (mk_loc sp ep) node
-
-let fix_formula sp ep node =
-  Formula.fix (mk_loc sp ep) node
-
-let fix_proof sp ep node =
-  Proof.fix (mk_loc sp ep) node
-
-let mk_arrow_ty sp ep args ret =
-  fix_ty sp ep (Ty.Fixable.TyArrow (args, ret))
-
-let mk_fun_decl name args ret =
-  TopLevel.FunDecl { name; args; ret }
-
-let mk_pred_decl name args =
-  TopLevel.PredDecl { name; args }
-
-let mk_axiom name formula =
-  TopLevel.Axiom { name; formula }
-
-let mk_theorem name formula proof =
-  TopLevel.Theorem { name; formula; proof }
-
-let mk_check proof formula =
-  TopLevel.Check { proof; formula }
-
-let mk_type_decl name params constructors =
-  TopLevel.TypeDecl { name; params; constructors }
+let mk_fun_decl name args ret = PouleAst.TopLevel.FunDecl { name; args; ret }
+let mk_pred_decl name args = PouleAst.TopLevel.PredDecl { name; args }
+let mk_axiom name formula = PouleAst.TopLevel.Axiom { name; formula }
+let mk_theorem name formula proof = PouleAst.TopLevel.Theorem { name; formula; proof }
+let mk_check proof formula = PouleAst.TopLevel.Check { proof; formula }
+let mk_type_decl name params constructors = PouleAst.TopLevel.TypeDecl { name; params; constructors }
 %}
 
 %token <string> LIDENT
@@ -190,19 +164,19 @@ ty:
 
 ty_atom:
   | TVAR
-      { fix_ty $startpos $endpos (Ty.Fixable.TyVar $1) }
+      { fix_ty $startpos $endpos (Fixable.Ty.TyVar $1) }
 
   | UIDENT
-      { fix_ty $startpos $endpos (Ty.Fixable.TyNamed ($1, [])) }
+      { fix_ty $startpos $endpos (Fixable.Ty.TyNamed ($1, [])) }
 
   | UIDENT LPAREN ty_list_opt RPAREN
-      { fix_ty $startpos $endpos (Ty.Fixable.TyNamed ($1, $3)) }
+      { fix_ty $startpos $endpos (Fixable.Ty.TyNamed ($1, $3)) }
 
   | LIDENT
-      { fix_ty $startpos $endpos (Ty.Fixable.TyNamed ($1, [])) }
+      { fix_ty $startpos $endpos (Fixable.Ty.TyNamed ($1, [])) }
 
   | LIDENT LPAREN ty_list_opt RPAREN
-      { fix_ty $startpos $endpos (Ty.Fixable.TyNamed ($1, $3)) }
+      { fix_ty $startpos $endpos (Fixable.Ty.TyNamed ($1, $3)) }
 
   | LPAREN ty RPAREN
       { $2 }
@@ -213,59 +187,59 @@ formula:
 
 formula_impl:
   | formula_or ARROW formula_impl
-      { fix_formula $startpos $endpos (Formula.Fixable.Impl ($1, $3)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.Impl ($1, $3)) }
   | formula_or
       { $1 }
 
 formula_or:
   | formula_or OR formula_and
-      { fix_formula $startpos $endpos (Formula.Fixable.Or ($1, $3)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.Or ($1, $3)) }
   | formula_and
       { $1 }
 
 formula_and:
   | formula_and AND formula_atom
-      { fix_formula $startpos $endpos (Formula.Fixable.And ($1, $3)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.And ($1, $3)) }
   | formula_atom
       { $1 }
 
 formula_atom:
   | TOP
-      { fix_formula $startpos $endpos Formula.Fixable.Top }
+      { fix_formula $startpos $endpos Fixable.Formula.Top }
 
   | BOTTOM
-      { fix_formula $startpos $endpos Formula.Fixable.Bottom }
+      { fix_formula $startpos $endpos Fixable.Formula.Bottom }
 
   | FORALL LPAREN LIDENT COLON ty RPAREN DOT formula
-      { fix_formula $startpos $endpos (Formula.Fixable.Forall ($3, $5, $8)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.Forall ($3, $5, $8)) }
 
   | EXISTS LPAREN LIDENT COLON ty RPAREN DOT formula
-      { fix_formula $startpos $endpos (Formula.Fixable.Exists ($3, $5, $8)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.Exists ($3, $5, $8)) }
 
   | term EQ term
-      { fix_formula $startpos $endpos (Formula.Fixable.Eq ($1, $3)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.Eq ($1, $3)) }
 
   | LIDENT LPAREN term_list_opt RPAREN
-      { fix_formula $startpos $endpos (Formula.Fixable.Pred ($1, $3)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.Pred ($1, $3)) }
 
   | UIDENT LPAREN term_list_opt RPAREN
-      { fix_formula $startpos $endpos (Formula.Fixable.Pred ($1, $3)) }
+      { fix_formula $startpos $endpos (Fixable.Formula.Pred ($1, $3)) }
 
   | LPAREN formula RPAREN
       { $2 }
 
 term:
   | LIDENT
-      { fix_term $startpos $endpos (Term.Fixable.Var $1) }
+      { fix_term $startpos $endpos (Fixable.Term.Var $1) }
 
   | UIDENT
-      { fix_term $startpos $endpos (Term.Fixable.Constr ($1, [])) }
+      { fix_term $startpos $endpos (Fixable.Term.Constr ($1, [])) }
 
   | UIDENT LPAREN term_list_opt RPAREN
-      { fix_term $startpos $endpos (Term.Fixable.Constr ($1, $3)) }
+      { fix_term $startpos $endpos (Fixable.Term.Constr ($1, $3)) }
 
   | LIDENT LPAREN term_list_opt RPAREN
-      { fix_term $startpos $endpos (Term.Fixable.App ($1, $3)) }
+      { fix_term $startpos $endpos (Fixable.Term.App ($1, $3)) }
 
   | LPAREN term RPAREN
       { $2 }
@@ -290,7 +264,7 @@ proof_app:
   | proof_atom proof_args
       {
         List.fold_left
-          (fun acc arg -> fix_proof $startpos $endpos (Proof.Fixable.App (acc, arg)))
+          (fun acc arg -> fix_proof $startpos $endpos (Fixable.ProofTerm.App (acc, arg)))
           $1
           $2
       }
@@ -303,53 +277,53 @@ proof_args:
 
 proof_atom:
   | LIDENT
-      { fix_proof $startpos $endpos (Proof.Fixable.Var $1) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Var $1) }
 
   | TRIV
-      { fix_proof $startpos $endpos Proof.Fixable.Triv }
+      { fix_proof $startpos $endpos Fixable.ProofTerm.Triv }
 
   | ABORT proof_atom COLON formula
-      { fix_proof $startpos $endpos (Proof.Fixable.Abort ($2, $4)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Abort ($2, $4)) }
 
   | LPAREN proof COMMA proof RPAREN
-      { fix_proof $startpos $endpos (Proof.Fixable.Pair ($2, $4)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Pair ($2, $4)) }
 
   | FST proof_atom
-      { fix_proof $startpos $endpos (Proof.Fixable.Fst $2) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Fst $2) }
 
   | SND proof_atom
-      { fix_proof $startpos $endpos (Proof.Fixable.Snd $2) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Snd $2) }
 
   | LEFT proof_atom COLON formula
-      { fix_proof $startpos $endpos (Proof.Fixable.Left ($2, $4)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Left ($2, $4)) }
 
   | RIGHT formula proof_atom
-      { fix_proof $startpos $endpos (Proof.Fixable.Right ($2, $3)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Right ($2, $3)) }
 
 | MATCH proof WITH
     BAR LEFT LIDENT DARROW proof
     BAR RIGHT LIDENT DARROW proof
     {
       fix_proof $startpos $endpos
-        (Proof.Fixable.Case ($2, ($6, $8), ($11, $13)))
+        (Fixable.ProofTerm.Case ($2, ($6, $8), ($11, $13)))
     }
 
 
 
   | FUN LPAREN LIDENT COLON formula RPAREN DARROW proof
-      { fix_proof $startpos $endpos (Proof.Fixable.Lam ($3, $5, $8)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Lam ($3, $5, $8)) }
 
   | GEN LPAREN LIDENT COLON ty RPAREN DARROW proof
-      { fix_proof $startpos $endpos (Proof.Fixable.Gen ($3, $5, $8)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Gen ($3, $5, $8)) }
 
   | proof_atom LBRACK term RBRACK
-      { fix_proof $startpos $endpos (Proof.Fixable.Inst ($1, $3)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Inst ($1, $3)) }
 
   | PACK LBRACK ty COMMA term COMMA proof RBRACK
-      { fix_proof $startpos $endpos (Proof.Fixable.Pack ($3, $5, $7)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Pack ($3, $5, $7)) }
 
   | UNPACK LPAREN term COMMA LIDENT COMMA LIDENT COMMA proof RPAREN
-      { fix_proof $startpos $endpos (Proof.Fixable.Unpack ($3, $5, $7, $9)) }
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.Unpack ($3, $5, $7, $9)) }
 
   | LPAREN proof RPAREN
       { $2 }
