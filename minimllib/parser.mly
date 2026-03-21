@@ -18,10 +18,8 @@ let mk_ty_app loc atoms =
   | [a] -> a
   | name :: args_rev ->
       (* On ne permet l'application que si le dernier atome est un Named([], id) *)
-      match name with
-      | Ty.Fixed.F (_d, Ty.Named ([], id)) ->
-          let args = List.rev args_rev in
-          ty loc (Ty.Named (args, id))
+      match Ty.Fixed.unfix name with
+      | Ty.Named ([], id) -> let args = List.rev args_rev in ty loc (Ty.Named (args, id))
       | _ ->
           (* ex: ('a -> 'b) 'c : illégal, ou int int : illégal *)
           (* Choix: erreur de parse ou erreur plus tard *)

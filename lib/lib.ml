@@ -1,9 +1,6 @@
 
-module MakeSurface3 (F : Fixables.Fixable3) : sig
-  val fold : ('a -> 'acc -> 'acc) -> ('b -> 'acc -> 'acc) -> ('c -> 'acc -> 'acc) -> ('a, 'b, 'c) F.t -> 'acc -> 'acc
-  val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('a1, 'b1, 'c1) F.t -> ('a2, 'b2, 'c2) F.t
-  val foldmap : ('a -> 'acc -> 'acc * 'a2) -> ('b -> 'acc -> 'acc * 'b2) -> ('c -> 'acc -> 'acc *'c2) -> ('a, 'b, 'c) F.t -> 'acc -> 'acc * ('a2, 'b2, 'c2) F.t
-end = struct
+module MakeSurface3 (F : Fixables.Fixable3) : Fixables.SigSurface3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t = struct
+  type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
     Fold.foldmap x
@@ -17,6 +14,7 @@ end = struct
 end
 
 module MakeSurface4 (F : Fixables.Fixable4) = struct
+  type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
     Fold.foldmap x
@@ -30,6 +28,7 @@ module MakeSurface4 (F : Fixables.Fixable4) = struct
 end
 
 module MakeSurface5 (F : Fixables.Fixable5) = struct
+  type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
     Fold.foldmap x
@@ -125,8 +124,8 @@ module Fix4 (F : Fixables.Fixable4) = struct
   end
 
   module Traverse = struct
-    let rec foldmap f g h (F (d, x)) acc =
-      let acc, x = f (foldmap f g h) (Surface.foldmap (foldmap f g h) g h) acc x in
+    let rec foldmap f g h i (F (d, x)) acc =
+      let acc, x = f (foldmap f g h i) (Surface.foldmap (foldmap f g h i) g h i) acc x in
       acc, F (d, x)
   end
 
@@ -169,8 +168,8 @@ module Fix5 (F : Fixables.Fixable5) = struct
   end
 
   module Traverse = struct
-    let rec foldmap f g h i (F (d, x)) acc =
-      let acc, x = f (foldmap f g h i) (Surface.foldmap (foldmap f g h i) g h) acc x in
+    let rec foldmap f g h i j (F (d, x)) acc =
+      let acc, x = f (foldmap f g h i j) (Surface.foldmap (foldmap f g h i j) g h i j) acc x in
       acc, F (d, x)
   end
 

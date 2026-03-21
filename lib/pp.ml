@@ -1,3 +1,4 @@
+type 'a printer = Format.formatter -> 'a -> unit
 let sep format f () = Format.fprintf f format
 let int f i = Format.fprintf f "%d" i
 let string f s = Format.fprintf f "%S" s
