@@ -1,9 +1,14 @@
 
 # Lib
-module Loc : position dans le fichier (utilisé par les parsers)
-module Pp : utilitaires pour les Printers
-module Applicative (map, fold, foldmap, accumule) : opérateurs de parcours de type récursif
-module ListApp : un fonctor pour parcourrir une liste avec une applicative
+
+Modules déclarés dans le dossier lib.
+fichier Loc : position dans le fichier (utilisé par les parsers)
+fichier Pp : utilitaires pour les Printers
+fichier Ident : utilitaires pour les identifiants (signatures, map & set, fresh pour des int-bindings et string-bindings)
+fichier Applicative (map, fold, foldmap, accumule) : opérateurs de parcours de type récursif
+  module ListApp : un fonctor pour parcourrir une liste avec une applicative
+
+fichier Lib :
 module type Fixable3 : AST récursif, avec 3 variables (dont une pour la récursion)
 module type Fixable4 : AST récursif, avec 3 variables (dont une pour la récursion)
 module Fix3 (F : Fixable3) et

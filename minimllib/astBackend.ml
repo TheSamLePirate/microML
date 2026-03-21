@@ -47,7 +47,7 @@ let pp_atom ppvar f = function
   | Bool b -> Format.fprintf f "%b" b
   | Unit -> Format.fprintf f "()"
 
-let pp_list_atom ppvar f li = Pp.list (fun f () -> Format.fprintf f ", ") (pp_atom ppvar) f li
+let pp_list_atom ppvar f li = Pp.list (Pp.sep ", ") (pp_atom ppvar) f li
 let pp_rhs ppfun ppvar f = function
   | Atom v -> pp_atom ppvar f v
   | Prim2 (op, a1, a2) -> Format.fprintf f "%a %a %a" (pp_atom ppvar) a1 Ast.Expr.ppop op (pp_atom ppvar) a2

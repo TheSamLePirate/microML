@@ -32,9 +32,9 @@ module Make(B:Bindings)(F:Fields) = struct
   | Integer i -> Format.fprintf f "%d" i
   | Bool b -> Format.fprintf f "%b" b
   | Char c -> Format.fprintf f "%C" c
-  | Tuple li -> Format.fprintf f "(%a)" (Pp.list (fun f () -> Format.fprintf f ",@ ") pp ) li
+  | Tuple li -> Format.fprintf f "(%a)" (Pp.list (Pp.sep ",@ ") pp ) li
   | Construct (a, b) -> Format.fprintf f "%a %a" F.pp a pp b
-  | Record li -> Format.fprintf f "{%a}" (Pp.list (fun f () -> Format.fprintf f ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (F.Map.to_list li)
+  | Record li -> Format.fprintf f "{%a}" (Pp.list (Pp.sep ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (F.Map.to_list li)
   | Lambda _ -> Format.fprintf f "<fun>"
   | Cell r -> match !r with
               | Some r -> Format.fprintf f "Cell(%a)" pp r

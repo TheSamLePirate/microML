@@ -22,13 +22,13 @@ module Ty = struct
           | Char -> Format.fprintf f "char"
           | Var x -> ppc f x
           | Tuple [] -> Format.fprintf f "unit"
-          | Tuple li -> Pp.list (fun f () -> Format.fprintf f " * ") ppa f li
-          | Sum li -> Format.fprintf f "( @[<v>%a@]@\n)" (Pp.list (fun f () -> Format.fprintf f "@\n| ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
+          | Tuple li -> Pp.list (Pp.sep " * ") ppa f li
+          | Sum li -> Format.fprintf f "( @[<v>%a@]@\n)" (Pp.list (Pp.sep "@\n| ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
           | Record li ->
              Format.fprintf f "{ @[%a@]}"
-             (Pp.list (fun f () -> Format.fprintf f "@\n; ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
+             (Pp.list (Pp.sep "@\n; ") (fun f (b, a) -> Format.fprintf f "%a of %a" ppb b ppa a)) li
           | Arrow (a, b) -> Format.fprintf f "@[(%a ->@ %a)@]" ppa a ppa b
-          | Named (li, d) -> Format.fprintf f "(%a) %a" (Pp.list (fun f () -> Format.fprintf f ",@ ") ppa) li ppd d
+          | Named (li, d) -> Format.fprintf f "(%a) %a" (Pp.list (Pp.sep ",@ ") ppa) li ppd d
         module Make(F:Applicative) = struct
           open F
           include ListApp(F)
@@ -70,7 +70,7 @@ module Expr = struct
       | Construct of 'b * 'a (* TODO AS...*)
     let pp ppa ppb ppc f = function
       | Var v -> ppc f v
-      | Tuple li -> Format.fprintf f "(%a)" (Pp.list (fun f () -> Format.fprintf f ", ") ppa) li
+      | Tuple li -> Format.fprintf f "(%a)" (Pp.list (Pp.sep ", ") ppa) li
       | Construct (b, a) -> Format.fprintf f "%a(%a)" ppb b ppa a
     module Make(F:Applicative) = struct
       include ListApp(F)
@@ -122,12 +122,12 @@ module Expr = struct
       | Integer i -> Format.fprintf f "%d" i
       | Bool b -> Format.fprintf f "%b" b
       | Char c -> Format.fprintf f "%c" c
-      | Tuple li -> Format.fprintf f "(@[%a@])" (Pp.list (fun f () -> Format.fprintf f ", ") ppa) li
+      | Tuple li -> Format.fprintf f "(@[%a@])" (Pp.list (Pp.sep ", ") ppa) li
       | Construct (b, a) -> Format.fprintf f "%a(%a)" ppb b ppa a
       | PatternMatch (a, li) -> Format.fprintf f "match %a with@\n  @[%a@]" ppa a
-                                  (Pp.list (fun f () -> Format.fprintf f "@\n")
+                                  (Pp.list (Pp.sep "@\n")
                                      (fun f (p, e) -> Format.fprintf f "|%a -> %a" ppp p ppa e )) li
-      | Record li -> Format.fprintf f "{@[%a@]}" (Pp.list (fun f () -> Format.fprintf f ";@\n") (fun f (b, a) -> Format.fprintf f "%a=%a" ppb b ppa a)) li
+      | Record li -> Format.fprintf f "{@[%a@]}" (Pp.list (Pp.sep ";@\n") (fun f (b, a) -> Format.fprintf f "%a=%a" ppb b ppa a)) li
       | AccessRecord (a, b) -> Format.fprintf f "(%a).%a" ppa a ppb b
       | Var c -> ppc f c
       | BinOp (a, op, b) -> Format.fprintf f "(%a %a %a)" ppa a ppop op ppa b

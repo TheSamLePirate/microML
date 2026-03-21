@@ -10,8 +10,13 @@ dossiers :
 - test/main.t (* fichier cram de tests *)
 - test/t%.ml (* fichier de test *)
 
-- lib/lib.ml (* librairie générique pour la gestion d'AST, monades pour récursiver des types paramétrés, et les parcourrir de différentes façons, on a aussi quelques fonctions utilitaires à la lib standard ocaml *)
+- lib/pp.ml (* librairie de pretty printers *)
+- lib/loc.ml (* module pour les positions lexées *)
+- lib/applicatives.ml (* monoïdes haskells *)
+- lib/aux.ml (* fonctions auxilières sur listes, etc... ce qui manque dans la lib standard ocaml *)
 - lib/ident.ml (* les modules pour les identifiants (variables, fields, etc...) ça délcare des modules avec map, set et fresh *)
+- lib/fixables.ml (* interfaces pour les choses fixables *)
+- lib/lib.ml (* librairie générique pour la gestion d'AST *)
 
 - minimllib/ast.ml (* AST primaire, celui fonctionnel, qui sort du parser *)
 - minimllib/lexer.mll

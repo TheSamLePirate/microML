@@ -24,7 +24,7 @@ let mk_ty_app loc atoms =
           (* ex: ('a -> 'b) 'c : illégal, ou int int : illégal *)
           (* Choix: erreur de parse ou erreur plus tard *)
           Pp.failwith "type application: expected type constructor at end [%a]"
-                          (Pp.list (fun f () -> Format.fprintf f "; ")
+                          (Pp.list (Pp.sep "; ")
                                        (Ast.Ty.Fixed.pp Pp.string Pp.string Pp.string)
                           ) atoms
 
