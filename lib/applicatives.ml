@@ -2,7 +2,13 @@
 module type Applicative = sig
   type 'a t
   val ret : 'a -> 'a t
+  (* apply *)
   val (<*>) : ('a -> 'b) t -> 'a t -> 'b t
+end
+module type Monade = sig
+  include Applicative
+  (* bind *)
+  val (=<<) : ('a -> 'b t) -> 'a t -> 'b t
 end
 
 module FoldMap (Acc : sig type t end) = struct
