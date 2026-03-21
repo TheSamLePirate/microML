@@ -185,10 +185,3 @@ module TopLvl = struct
          (Ty.Fixed.pp pp_field pp_tyvar pp_tybinding ) ty
          str
 end
-
-
-type ('acc, 'from, 'target ) passe = {
-    init : 'acc;
-    process :  'acc -> 'from -> 'acc * 'target
-  }
-

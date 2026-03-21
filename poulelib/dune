@@ -1,5 +1,5 @@
 (library
- (name poule)
+ (name poulelib)
   (flags (:standard -g))
  (libraries menhirLib unix libCore))
 

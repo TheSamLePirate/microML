@@ -1,4 +1,5 @@
 open LibCore.Ident
+open LibCore.Passes
 module Pp = LibCore.Pp
 
 module Bindings = Bindings.Make(StringBindings)(IntBindings)
@@ -26,11 +27,6 @@ let parse_file filename =
   close_in ic;
   ast
 
-let print_pass pp =
-  {Ast.init = ();
-   Ast.process = fun () value -> Format.printf "%a@\n" pp value; (), value }
-
-let no_pass = {Ast.init = (); Ast.process = fun () value -> (), value }
 
 let dump ic =
   try
@@ -66,16 +62,6 @@ let clang_pass output_file runtime_file runtime_header_dir prog =
  match snd (Unix.waitpid [] pid) with
   | Unix.WEXITED 0 -> ()
   | _ -> failwith "clang failed"
-
-(* TODO gérer un genre d'option, gestion des erreurs, avancer petit à petit*)
-let (>*>) ast passe = List.fold_left_map passe.Ast.process passe.Ast.init ast
-let (>|>) ast passe = snd (ast >*> passe)
-let (>|?>) ast passe = ast >|> passe ()
-
-let handle_option name access pass () =
-  if access name then
-    begin Format.printf "Passe : %s@\n" name; pass end
-  else no_pass
 
 let pipeline_base options filename =
   parse_file filename

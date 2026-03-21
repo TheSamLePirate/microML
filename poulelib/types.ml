@@ -8,4 +8,5 @@ module ParsedProg =
     (struct
        type deco = Loc.t
        type pred = string
+       let pp_pred = LibCore.Pp.string
      end)

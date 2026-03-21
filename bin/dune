@@ -1,6 +1,12 @@
 (executable
   (name main)
   (flags (:standard -g))
-  (libraries miniml unix poule)
+  (libraries miniml unix)
   (link_deps ../runtime/libruntime.a)
+)
+
+(executable
+  (name poule)
+  (flags (:standard -g))
+  (libraries poulelib unix)
 )

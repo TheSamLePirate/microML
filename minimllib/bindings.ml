@@ -6,7 +6,7 @@ sig
   type acc
   val passe : (acc,
                (Loc.t, 'b, 'c, 'd, 'e, B.t) Ast.TopLvl.decl,
-               (Loc.t, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) passe
+               (Loc.t, 'b, 'c, 'd, 'e, BTarget.t) Ast.TopLvl.decl) LibCore.Passes.t
   val debug : (Format.formatter -> 'field -> unit) ->
               (Format.formatter -> 'tyvar -> unit) ->
               (Format.formatter -> 'tybinding -> unit) ->
@@ -83,9 +83,6 @@ end = struct
        let binding', acc = stringmap_add acc binding in
        acc, External (binding', ty, str)
 
-  let passe = {
-      Ast.init = B.Map.empty, BTarget.init;
-      Ast.process = process;
-  }
+  let passe = { LibCore.Passes.init = B.Map.empty, BTarget.init; process = process; }
   let debug f_pp tyv_pp tyb_pp f e = Ast.TopLvl.pp f_pp BTarget.pp tyv_pp tyb_pp f e
 end

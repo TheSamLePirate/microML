@@ -1,3 +1,4 @@
+open LibCore.Passes
 
 let parse_file filename =
   let ic = open_in filename in
@@ -10,3 +11,8 @@ let parse_file filename =
   with e ->
     close_in_noerr ic;
     raise e
+
+let pipeline options filename =
+  parse_file filename
+  >|?> (handle_option "parsing" options
+          (print_pass Types.ParsedProg.pp))

@@ -94,8 +94,5 @@ module Make(B:Ident.Bindings) = struct
       (Pp.list (Pp.sep "@\n") pp_function) program.functions
       (Pp.list (Pp.sep "@\n") pp_entry_decl) program.entry
 
-  let passe = {
-      Ast.init = [ ];
-      process = process
-  }
+  let passe = { LibCore.Passes.init = [ ]; process = process }
 end

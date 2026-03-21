@@ -15,7 +15,7 @@ sig
                 F.t, B.t) Ast.TopLvl.decl,
                (Loc.t * Loc.t ty, Loc.t,
                 BT.t, BTyNamed.t,
-                F.t, B.t) Ast.TopLvl.decl) passe
+                F.t, B.t) Ast.TopLvl.decl) LibCore.Passes.t
   val debug : Format.formatter -> (Loc.t * Loc.t ty, Loc.t,
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl -> unit
@@ -388,10 +388,7 @@ end = struct
        let ty = Ty.Fixed.Deep.mapfg Fun.id (fun v -> BTyVar.Map.find v map) Fun.id ty in
        let env = insert_poly env binding ty in
        env, External (binding, ty, s)
-  let passe = {
-      Ast.init = empty;
-      process = process
-  }
+  let passe = { LibCore.Passes.init = empty; process = process }
   let debug f = function
     | Ast.TopLvl.Let (binding, expr)
     | Ast.TopLvl.LetRec (binding, expr) ->

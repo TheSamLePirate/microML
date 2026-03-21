@@ -47,10 +47,7 @@ module Make(B:Bindings) = struct
                          acc, (name, def)) acc p.AstBackend.entry in
     acc, {entry=entry; AstBackend.functions=functions}
 
-  let passe = {
-      Ast.init = B.Map.empty;
-      process = inline;
-  }
+  let passe = { LibCore.Passes.init = B.Map.empty; process = inline; }
 
   let pp_fun f func = Format.fprintf f "function %a(%a){@\n@[<v2>  %a@]@\n}"
                         B.pp func.AstBackend.id

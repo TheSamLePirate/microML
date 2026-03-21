@@ -516,10 +516,7 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
                                            body = body
                                        }]; entry = []}
 
-  let passe = {
-      Ast.init = empty;
-      process = process
-  }
+  let passe = { LibCore.Passes.init = empty; process = process }
 
   let pp_fun f func = Format.fprintf f "function %a(%a){@\n@[<v2>  %a@]@\n}"
                         BT.pp func.id

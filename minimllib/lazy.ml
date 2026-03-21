@@ -14,8 +14,5 @@ let process () toplvl =
   | Let (binding, expr) -> let expr = process expr in (), Let(binding, expr)
   | LetRec( binding, expr) -> let expr = process expr in (), LetRec(binding, expr)
 
-  let passe = {
-      Ast.init = ();
-      Ast.process = process;
-  }
+  let passe = { LibCore.Passes.init = (); process = process; }
   let debug f_pp b_pp tyv_pp tyb_pp f e = Ast.TopLvl.pp f_pp b_pp tyv_pp tyb_pp f e
