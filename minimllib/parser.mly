@@ -4,7 +4,7 @@ open Ast
 open Ast.Expr
 module Pp = LibCore.Pp
 
-let loc (sp, ep) = { LibCore.Loc.startp = sp; LibCore.Loc.endp = ep }
+let loc (a, b) = LibCore.Loc.loc a b
 let p loc x = Fixed.fix_u x loc
 let e loc x = Fixed.fix x loc
 let ty loc x = Ty.Fixed.fix x loc

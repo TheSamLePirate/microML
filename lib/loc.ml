@@ -1,4 +1,5 @@
 type t = { startp : Lexing.position; endp : Lexing.position }
+let loc s e = { startp=s; endp=e}
 let pp f l =
   let sp = l.startp and ep = l.endp in
   Format.fprintf f "<%s>%d:%d-%d:%d"

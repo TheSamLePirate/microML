@@ -9,8 +9,7 @@ module Term    = Term
 module Formula = Formula
 module Proof   = ProofTerm
 
-let mk_loc sp ep =
-  { LibCore.Loc.startp = sp; endp = ep }
+let mk_loc = LibCore.Loc.loc
 
 let fix_ty sp ep node =
   Ty.fix (mk_loc sp ep) node

@@ -161,12 +161,11 @@ module FixMut :
           val decorate_foldmap :
             ((('deco_begin, 'b, 'c) t, 'acc, ('deco_end, 'f, 'g) t) fun_foldmap ->
              (('deco_begin, 'h, 'i) u, 'acc, ('j, 'k, 'l) u) fun_foldmap ->
-             ((('deco_begin, 'b, 'c) t, ('deco_begin, 'h, 'i) u, 'm, 'n) F.t ->
-              'acc -> 'acc * (('deco_end, 'f, 'g) t, ('j, 'k, 'l) u, 'o, 'p) F.t) ->
+             ((('deco_begin, 'b, 'c) t, ('deco_begin, 'h, 'i) u, 'm, 'n) F.t, 'acc, (('deco_end, 'f, 'g) t, ('j, 'k, 'l) u, 'o, 'p) F.t) fun_foldmap ->
              'acc ->
              'deco_begin ->
              (('deco_begin, 'b, 'c) t, ('deco_begin, 'b, 'c) u, 'b, 'c) F.t -> 'acc * 'deco_end * (('deco_end, 'f, 'g) t, ('deco_end, 'f, 'g) u, 'f, 'g) F.t) ->
-            ((('deco_begin, 'h, 'i) u -> 'acc -> 'acc * ('j, 'k, 'l) u) ->
+            ((('deco_begin, 'h, 'i) u, 'acc, ('j, 'k, 'l) u) fun_foldmap ->
              ((('deco_begin, 'h, 'i) u, 'm, 'n) G.t, 'acc, (('j, 'k, 'l) u, 'o, 'p) G.t) fun_foldmap ->
              'acc -> 'deco_begin -> (('deco_begin, 'h, 'i) u, 'h, 'i) G.t -> 'acc * 'j * (('j, 'k, 'l) u, 'k, 'l) G.t) ->
             ('deco_begin -> ('m, 'acc, 'o) fun_foldmap)->
