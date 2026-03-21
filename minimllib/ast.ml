@@ -168,7 +168,7 @@ module TopLvl = struct
   let pp pp_field pp_binding pp_tyvar pp_tybinding f = function
     | TypeDecl (tylist, tybinding, ty) ->
        Format.fprintf f "type (%a) %a = %a"
-         (Lib.Pp.list (Lib.Pp.sep ", ") pp_tyvar) tylist
+         (Pp.list (Pp.sep ", ") pp_tyvar) tylist
          pp_tybinding tybinding
          (Ty.Fixed.pp pp_field pp_tyvar pp_tybinding ) ty
     | Let (binding, expr) ->

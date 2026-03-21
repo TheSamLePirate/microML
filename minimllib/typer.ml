@@ -48,14 +48,14 @@ end = struct
     {vars=BT.Set.to_list vars; body=ty}
 
   let pp_scheme f scheme = Format.fprintf f "@[∀ %a . %a@]"
-                         (Lib.Pp.list (Lib.Pp.sep " ") BT.pp) scheme.vars
+                         (Pp.list (Pp.sep " ") BT.pp) scheme.vars
                          ppty scheme.body
 
   let ppenv f env =
     Format.fprintf f "@[{fresh:%a;@\nbindings:%a;@\ntybindings:@[%a@]@\n}@]"
     BT.pp env.fresh
-    (Lib.Pp.assoc B.pp pp_scheme) (B.Map.to_list env.bindings)
-    (Lib.Pp.assoc BT.pp ppty) (BT.Map.to_list env.tybindings)
+    (Pp.assoc B.pp pp_scheme) (B.Map.to_list env.bindings)
+    (Pp.assoc BT.pp ppty) (BT.Map.to_list env.tybindings)
 
   let empty = { fresh = BT.init; bindings = B.Map.empty; tybindings = BT.Map.empty; ty_named=BTyNamed.Map.empty; fieldmap = F.Map.empty; }
   let fresh location env v =
@@ -96,7 +96,7 @@ end = struct
         | _ -> false) ty
   let occurs_check v t location =
     let t = Ty.Fixed.fix t location in
-    if occurs_check v t then Lib.Pp.failwith "type rec : %a occurs in %a" BT.pp v ppty t
+    if occurs_check v t then Pp.failwith "type rec : %a occurs in %a" BT.pp v ppty t
 
   (* TODO utiliser le zip *)
   let rec unify location env t1 t2 =
@@ -104,7 +104,7 @@ end = struct
     match t1, t2 with
     | Ty.Named (li1, d1), Ty.Named (li2, d2) when BTyNamed.equal d1 d2 -> (* TODO instancier sauf si c'est pas type somme *)
        let env, li = match Lib.zip_opt li1 li2 with
-           | None -> Lib.Pp.failwith "%a vs %a" ppty (tf location t1) ppty (tf location t2)
+           | None -> Pp.failwith "%a vs %a" ppty (tf location t1) ppty (tf location t2)
            | Some li -> List.fold_left_map (fun env (t1, t2) -> unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
        let li = List.map (tf location) li
        in env, Ty.Named(li, d1)
@@ -147,7 +147,7 @@ end = struct
        let env, t1 = unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2) in
        env, Ty.Arrow(tf location f1, tf location t1)
     | _ ->
-       Lib.Pp.failwith "@\nCannot unify @[<v>%a@\nvs :@\n%a@]@\n(location %a)@\n"
+       Pp.failwith "@\nCannot unify @[<v>%a@\nvs :@\n%a@]@\n(location %a)@\n"
          ppty (tf location t1) ppty (tf location t2)
          Lib.Loc.pp location
 
@@ -156,7 +156,7 @@ end = struct
         match ty with
         | Ty.Sum (((name, _)::_) as li) ->
            begin match F.Map.find_opt name env.fieldmap with
-           | None -> Lib.Pp.failwith "unknown constructor %a" F.pp name
+           | None -> Pp.failwith "unknown constructor %a" F.pp name
            | Some tyname ->
               let (tyvars, def) = BTyNamed.Map.find tyname env.ty_named in
               let env, tyvars, def = instantiate env tyvars def in
@@ -230,7 +230,7 @@ end = struct
        let env, e = tra env e in
        let te = ty_of_expr e in
        begin match F.Map.find_opt a env.fieldmap with
-       | None -> Lib.Pp.failwith "unknown constructor %a" F.pp a
+       | None -> Pp.failwith "unknown constructor %a" F.pp a
        | Some s -> let tyvars, ty = BTyNamed.Map.find s env.ty_named in
                    let env, nvars, tout' = instantiate env tyvars ty in
                    let te' = match Ty.Fixed.unfix tout' with

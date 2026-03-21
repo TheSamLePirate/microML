@@ -1,4 +1,4 @@
-module Pp = LibCore.Lib.Pp
+module Pp = LibCore.Pp
 module type Applicative = LibCore.Lib.Applicative
 module ListApp = LibCore.Lib.ListApp
 module Fix3 = LibCore.Lib.Fix3

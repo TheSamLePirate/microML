@@ -2,7 +2,7 @@
 (* Adapte ces opens à ton projet *)
 open Ast
 open Ast.Expr
-open LibCore.Lib
+module Pp = LibCore.Pp
 
 let loc (sp, ep) = { LibCore.Lib.Loc.startp = sp; LibCore.Lib.Loc.endp = ep }
 let p loc x = Fixed.fix_u x loc
@@ -59,7 +59,7 @@ let mk_ty_app loc atoms =
 
 %token EOF
 
-%type < (Loc.t, Loc.t, string, string, string, string) Ast.TopLvl.decl list> main
+%type < (LibCore.Lib.Loc.t, LibCore.Lib.Loc.t, string, string, string, string) Ast.TopLvl.decl list> main
 %start main
 
 (* --- Precedences --- *)

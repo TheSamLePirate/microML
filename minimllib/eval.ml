@@ -1,7 +1,6 @@
 open Ast
 open LibCore.Ident
 open LibCore
-module Pp = Lib.Pp
 
 module Make(B:Bindings)(F:Fields) = struct
 
@@ -33,9 +32,9 @@ module Make(B:Bindings)(F:Fields) = struct
   | Integer i -> Format.fprintf f "%d" i
   | Bool b -> Format.fprintf f "%b" b
   | Char c -> Format.fprintf f "%C" c
-  | Tuple li -> Format.fprintf f "(%a)" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") pp ) li
+  | Tuple li -> Format.fprintf f "(%a)" (Pp.list (fun f () -> Format.fprintf f ",@ ") pp ) li
   | Construct (a, b) -> Format.fprintf f "%a %a" F.pp a pp b
-  | Record li -> Format.fprintf f "{%a}" (Lib.Pp.list (fun f () -> Format.fprintf f ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (F.Map.to_list li)
+  | Record li -> Format.fprintf f "{%a}" (Pp.list (fun f () -> Format.fprintf f ",@ ") (fun f (a, b) -> Format.fprintf f "%a=%a" F.pp a pp b)) (F.Map.to_list li)
   | Lambda _ -> Format.fprintf f "<fun>"
   | Cell r -> match !r with
               | Some r -> Format.fprintf f "Cell(%a)" pp r
@@ -120,7 +119,7 @@ let rec uncell f = function
        | "prim_print_int_clot" ->
           let value = Lambda (fun v -> Format.printf "%d" (integer v); Tuple []) in
           B.Map.add binding value env, Tuple []
-       | _ -> Lib.Pp.failwith "no external %S" key
+       | _ -> Pp.failwith "no external %S" key
        end
     | Ast.TopLvl.TypeDecl (_, _, _) -> env, Tuple []
     | Ast.TopLvl.LetRec( binding, expr) ->

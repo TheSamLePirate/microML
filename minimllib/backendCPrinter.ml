@@ -1,5 +1,5 @@
 open AstBackend
-module Pp = LibCore.Lib.Pp
+module Pp = LibCore.Pp
 
 module Make(B:Ident.Bindings) = struct
 

@@ -1,6 +1,6 @@
 module type Bindings = LibCore.Ident.Bindings
 
-module Pp = LibCore.Lib.Pp
+module Pp = LibCore.Pp
 module Make(B:Bindings) = struct
 
   module M = AstBackend.Fixable.Make(LibCore.Lib.Applicatives.Map)

@@ -27,7 +27,7 @@ module StringBindings : Bindings with type t = string = struct
   include String
   module Map = Map.Make(String)
   module Set = Set.Make(String)
-  let pp = Lib.Pp.string
+  let pp = Pp.string
 end
 module IntBindings : FreshableBindings with type t = int = struct
   include Int
@@ -56,7 +56,7 @@ module StringFields : Fields with type t = string = struct
   include String
   module Map = Map.Make(String)
   module Set = Set.Make(String)
-  let pp = Lib.Pp.string
+  let pp = Pp.string
 end
 module IntFields : FreshableFields with type t = int = struct
   include Int

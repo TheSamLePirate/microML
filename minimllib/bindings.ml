@@ -60,7 +60,7 @@ end = struct
                  | _ ->  let acc, x = tra p acc in acc, d, x)
                (fun _d x acc -> acc, x)
                (fun location binding ((map, _) as acc) -> match B.Map.find_opt binding map with
-                                                 | None -> Lib.Pp.failwith "unbound value %a at %a" B.pp binding Lib.Loc.pp location
+                                                 | None -> Pp.failwith "unbound value %a at %a" B.pp binding Lib.Loc.pp location
                                                  | Some s -> acc, s)
                e
              acc
