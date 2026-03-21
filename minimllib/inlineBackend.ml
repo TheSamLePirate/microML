@@ -3,7 +3,7 @@ module type Bindings = LibCore.Ident.Bindings
 module Pp = LibCore.Pp
 module Make(B:Bindings) = struct
 
-  module M = AstBackend.Fixable.Make(LibCore.Lib.Applicatives.Map)
+  module M = AstBackend.Fixable.Make(LibCore.Applicatives.Map)
 
   let foldatm acc atm = match atm with
     | AstBackend.Fixable.Var v -> Option.value (B.Map.find_opt v acc) ~default:atm

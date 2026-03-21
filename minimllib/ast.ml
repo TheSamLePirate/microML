@@ -1,5 +1,6 @@
 open LibCore
 open Lib
+module type Applicative = LibCore.Applicatives.Applicative
 
 module Ty = struct
   type ('a, 'b, 'c, 'd) tofix =

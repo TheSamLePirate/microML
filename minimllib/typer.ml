@@ -1,5 +1,6 @@
 open Ast
 open LibCore
+module Loc = LibCore.Loc
 
 let tf location x = Ty.Fixed.fix x location
 
@@ -9,13 +10,13 @@ sig
 
   type acc
   val passe : (acc,
-               (Lib.Loc.t, Lib.Loc.t,
+               (Loc.t, Loc.t,
                 BTyVar.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl,
-               (Lib.Loc.t * Lib.Loc.t ty, Lib.Loc.t,
+               (Loc.t * Loc.t ty, Loc.t,
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl) passe
-  val debug : Format.formatter -> (Lib.Loc.t * Lib.Loc.t ty, Lib.Loc.t,
+  val debug : Format.formatter -> (Loc.t * Loc.t ty, Loc.t,
                 BT.t, BTyNamed.t,
                 F.t, B.t) Ast.TopLvl.decl -> unit
 
@@ -27,13 +28,13 @@ end = struct
 
   type scheme = {
       vars : BT.t list;
-      body : Lib.Loc.t ty;
+      body : Loc.t ty;
     }
   type env = {
       fresh : BT.t;
       bindings : scheme B.Map.t;
-      tybindings : Lib.Loc.t ty BT.Map.t;
-      ty_named : (BT.t list * Lib.Loc.t ty) BTyNamed.Map.t;
+      tybindings : Loc.t ty BT.Map.t;
+      ty_named : (BT.t list * Loc.t ty) BTyNamed.Map.t;
       fieldmap : BTyNamed.t F.Map.t
     }
   type acc = env
@@ -70,7 +71,7 @@ end = struct
     let typevar =  Ty.Var tv |> tf location in
     env, typevar
 
-  let instantiate (env:env) tyvars (ty : Lib.Loc.t ty) =
+  let instantiate (env:env) tyvars (ty : Loc.t ty) =
     let (env, assocvars), nvars = List.fold_left_map (fun (env, assocvars) var ->
                              let env, var' = fresh'var env in
                              (env, BT.Map.add var var' assocvars), var') (env, BT.Map.empty) tyvars in
@@ -149,7 +150,7 @@ end = struct
     | _ ->
        Pp.failwith "@\nCannot unify @[<v>%a@\nvs :@\n%a@]@\n(location %a)@\n"
          ppty (tf location t1) ppty (tf location t2)
-         Lib.Loc.pp location
+         Loc.pp location
 
   let canonique_pattern location env t =
     Ty.Fixed.Deep.foldmap (fun env ty ->

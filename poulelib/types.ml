@@ -1,4 +1,4 @@
-module Loc = LibCore.Lib.Loc
+module Loc = LibCore.Loc
 module Ident = LibCore.Ident
 module ParsedProg =
   PouleAst.Prog

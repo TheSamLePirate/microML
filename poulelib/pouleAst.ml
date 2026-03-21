@@ -1,5 +1,5 @@
 module Pp = LibCore.Pp
-module type Applicative = LibCore.Lib.Applicative
+module type Applicative = LibCore.Applicatives.Applicative
 module Fix3 = LibCore.Lib.Fix3
 module Fix4 = LibCore.Lib.Fix4
 module Fix5 = LibCore.Lib.Fix5

@@ -35,46 +35,7 @@ let group_count cmp li =
      | hd::tl -> f [] hd 1 tl
      | [] -> []
 
-module type Applicative = sig
-  type 'a t
-  val ret : 'a -> 'a t
-  val (<*>) : ('a -> 'b) t -> 'a t -> 'b t
-end
-
-module Applicatives = struct
-  module FoldMap (Acc : sig type t end) = struct
-    type 'a t = Acc.t -> Acc.t * 'a
-    let ret x acc = acc, x
-    let (<*>) f g acc =
-      let acc, e1 = f acc in
-      let acc, e2 = g acc in
-      acc, e1 e2
-    let (=<<) f t acc =
-      let acc, x = t acc in
-      f x acc
-  end
-  module Map = struct
-    type 'a t = 'a
-    let ret x = x
-    let (<*>) f g = f g
-    let (=<<) f x = f x
-  end
-  module Fold (Acc : sig type t end) = struct
-    type 'a t = (Acc.t -> Acc.t)
-    let ret _ acc = acc
-    let (<*>) f g acc = g (f acc)
-  end
-  module Accumule (Acc : sig type t
-      val merge : t -> t -> t
-      val zero : t
-    end) = struct
-    type 'a t = Acc.t * 'a
-    let ret x = Acc.zero, x
-    let (<*>) (acc1, f1) (acc2, x) = Acc.merge acc1 acc2, f1 x
-  end
-end
-
-module ListApp (A:Applicative) = struct
+module ListApp (A:Applicatives.Applicative) = struct
   open A
   let foldmap_snd f (i, j) = ret (fun j -> i, j) <*> f j
   let fold_left_map f l = List.fold_right (fun x xs -> ret List.cons <*> f x <*> xs) l (ret [])
@@ -88,7 +49,7 @@ module type Fixable3 = sig
            (Format.formatter -> 'b -> unit) ->
            (Format.formatter -> 'c -> unit) ->
            Format.formatter -> ('a, 'b, 'c) t -> unit
-  module Make : functor (F:Applicative) -> sig
+  module Make : functor (F:Applicatives.Applicative) -> sig
     val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('a, 'b, 'c) t -> ('ra, 'rb, 'rc) t F.t
   end
 end
@@ -105,7 +66,7 @@ module type Fixable4 = sig
            (Format.formatter -> 'c -> unit) ->
            (Format.formatter -> 'd -> unit) ->
            Format.formatter -> ('a, 'b, 'c, 'd) t -> unit
-  module Make : functor (F:Applicative) -> sig
+  module Make : functor (F:Applicatives.Applicative) -> sig
     val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('a, 'b, 'c, 'd) t -> ('ra, 'rb, 'rc, 'rd) t F.t
   end
 end
@@ -118,7 +79,7 @@ module type Fixable5 = sig
            (Format.formatter -> 'd -> unit) ->
            (Format.formatter -> 'e -> unit) ->
            Format.formatter -> ('a, 'b, 'c, 'd, 'e) t -> unit
-  module Make : functor (F:Applicative) -> sig
+  module Make : functor (F:Applicatives.Applicative) -> sig
     val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('e -> 're F.t) -> ('a, 'b, 'c, 'd, 'e) t -> ('ra, 'rb, 'rc, 'rd, 're) t F.t
   end
 end
@@ -171,7 +132,7 @@ module Fix3 (F : Fixable3) = struct
   let wrap_acc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
-  module MakeApp (A:Applicative) = struct (* C'est un traversable sur les deux autres variables, utilisable quand un objet de l'AST est inclu dans un autre AST (exemple : pattern matching dans expression aurait pu être implémenté comme ça) *)
+  module MakeApp (A:Applicatives.Applicative) = struct (* C'est un traversable sur les deux autres variables, utilisable quand un objet de l'AST est inclu dans un autre AST (exemple : pattern matching dans expression aurait pu être implémenté comme ça) *)
     open A
     module S = F.Make(A)
     let rec foldmap f g (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g) f g x
@@ -220,7 +181,7 @@ module Fix4 (F : Fixable4) = struct
   let wrap_acc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
-  module MakeApp (A:Applicative) = struct
+  module MakeApp (A:Applicatives.Applicative) = struct
     open A
     module S = F.Make(A)
     let rec foldmap f g h (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g h) f g h x
@@ -264,7 +225,7 @@ module Fix5 (F : Fixable5) = struct
   let wrap_acc f (F (deco, x)) acc =
     let acc, x = f x acc in acc, F (deco, x)
 
-  module MakeApp (A:Applicative) = struct
+  module MakeApp (A:Applicatives.Applicative) = struct
     open A
     module S = F.Make(A)
     let rec foldmap f g h i (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g h i) f g h i x
@@ -385,16 +346,5 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
                  (fun p f -> G.pp (fun f x -> x f) ppb ppc f p)
 
   let pp ppb ppc f p = pp ppb ppc p f
-
-end
-
-module Loc = struct
-  type t = { startp : Lexing.position; endp : Lexing.position }
-  let pp f l =
-    let sp = l.startp and ep = l.endp in
-    Format.fprintf f "<%s>%d:%d-%d:%d"
-      l.startp.pos_fname
-      sp.pos_lnum (sp.pos_cnum - sp.pos_bol)
-      ep.pos_lnum (ep.pos_cnum - ep.pos_bol)
 
 end
