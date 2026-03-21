@@ -1,5 +1,7 @@
-open LibCore
-open Lib
+open LibCore.Lib
+module Aux = LibCore.Aux
+module Pp = LibCore.Pp
+module ListApp = LibCore.Applicatives.ListApp
 module type Applicative = LibCore.Applicatives.Applicative
 
 module Ty = struct
@@ -45,13 +47,13 @@ module Ty = struct
             | Integer, Integer -> Some (Integer)
             | Char, Char -> Some (Char)
             | Bool, Bool -> Some (Char)
-            | Tuple lia, Tuple lib -> Option.map (fun x -> Tuple x) (zip_opt lia lib)
-            | Sum lia, Sum lib -> Option.map (fun x -> Sum x) (zip_opt lia lib)
-            | Record lia, Record lib -> Option.map (fun x -> Record x) (zip_opt lia lib)
+            | Tuple lia, Tuple lib -> Option.map (fun x -> Tuple x) (Aux.zip_opt lia lib)
+            | Sum lia, Sum lib -> Option.map (fun x -> Sum x) (Aux.zip_opt lia lib)
+            | Record lia, Record lib -> Option.map (fun x -> Record x) (Aux.zip_opt lia lib)
             | Var a, Var b -> Some (Var (a, b))
             | Arrow (a, b), Arrow (c, d) -> Some (Arrow ((a, c), (b, d)))
             | Named (li1, d1), Named( li2, d2) ->
-               if d1 == d2 then Option.map (fun li -> Named(li, d1)) (zip_opt li1 li2)
+               if d1 == d2 then Option.map (fun li -> Named(li, d1)) (Aux.zip_opt li1 li2)
                else None
             | _ -> None
   end

@@ -1,11 +1,11 @@
 module Pp = LibCore.Pp
 module type Applicative = LibCore.Applicatives.Applicative
-module ListApp = LibCore.Lib.ListApp
+module ListApp = LibCore.Applicatives.ListApp
 module Fix3 = LibCore.Lib.Fix3
 module Ident = LibCore.Ident
 
 open LibCore.Lib
-let (--) = LibCore.Lib.(--)
+open LibCore.Aux
 
 module Fixable = struct
 
@@ -345,15 +345,15 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
 
   let reduce_expr used_vars expr env =
     match expr with
-    | Ast.Expr.Fixable.Integer i -> RedRes(env, [], id, Fixable.Int i)
-    | Ast.Expr.Fixable.Bool i -> RedRes(env, [], id, Fixable.Bool i)
-    | Ast.Expr.Fixable.Char c -> RedRes(env, [], id, Fixable.Char c)
+    | Ast.Expr.Fixable.Integer i -> RedRes(env, [], Fun.id, Fixable.Int i)
+    | Ast.Expr.Fixable.Bool i -> RedRes(env, [], Fun.id, Fixable.Bool i)
+    | Ast.Expr.Fixable.Char c -> RedRes(env, [], Fun.id, Fixable.Char c)
     | Ast.Expr.Fixable.Var v -> (* si la variable est une fonction globale toplvl, on est obligé d'en créer une cloture *)
        begin match B.Map.find_opt v env.globalMap with
-       | None -> RedRes(env, [], id, b_to_atom v env)
+       | None -> RedRes(env, [], Fun.id, b_to_atom v env)
        | Some s -> match BT.Map.find_opt s env.arity with
           | None -> Pp.failwith "(* bug *) arity not found %a (from : %a)" BT.pp s B.pp v
-          | Some 0 -> RedRes(env, [], id, b_to_atom v env)
+          | Some 0 -> RedRes(env, [], Fun.id, b_to_atom v env)
           | Some arity ->
              let env, c = fresh env in
              RedRes(env, [], (fun in' -> Fixable.Let (c, Fixable.MakeClosure(s, arity, []), in') |> fix), Fixable.Var c)
@@ -440,7 +440,7 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
                                             let env, functions', make', e = res e env in
                                             let functions = functions'::functions in
                                             (env, functions, make << make'), e
-                                          ) (env, [], id) li in
+                                          ) (env, [], Fun.id) li in
        let functions = List.flatten (List.rev functions) in
        RedRes(env, functions, make << (fun _in -> Fixable.Let (v, Fixable.MakeTuple(li), _in) |> fix), Fixable.Var v)
     |Ast.Expr.Fixable.Construct (i, e) ->
@@ -453,7 +453,7 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
                                             let env, functions', make', e = res e env in
                                             let functions = functions'::functions in
                                             (env, functions, make << make'), (i, e)
-                                          ) (env, [], id) li in
+                                          ) (env, [], Fun.id) li in
        let functions = List.flatten (List.rev functions) in
        RedRes(env, functions, make << (fun _in -> Fixable.Let (v, Fixable.MakeRecord(li), _in) |> fix), Fixable.Var v)
      |Ast.Expr.Fixable.AccessRecord (e, i) ->
@@ -472,13 +472,13 @@ module Make(B:Ident.Bindings)(BT:Ident.FreshableBindings) = struct
 
   (* On capture les variables de l'environement utilisées pour savoir lesquelles capturer *)
   let decorate_bindings_p _ p =
-    let p = Ast.Expr.Fixed.SurfaceG.map Ast.Expr.Fixed.decoration_u id id p in
+    let p = Ast.Expr.Fixed.SurfaceG.map Ast.Expr.Fixed.decoration_u Fun.id Fun.id p in
     match p with
     | Ast.Expr.Pattern.Var v -> B.Set.singleton v
     | x -> Ast.Expr.Fixed.SurfaceG.fold B.Set.union passacc passacc x B.Set.empty
 
   let decorate_bindings_e _ e =
-    let e = Ast.Expr.Fixed.SurfaceF.map Ast.Expr.Fixed.decoration Ast.Expr.Fixed.decoration_u id id e in
+    let e = Ast.Expr.Fixed.SurfaceF.map Ast.Expr.Fixed.decoration Ast.Expr.Fixed.decoration_u Fun.id Fun.id e in
     match e with
     | Ast.Expr.Fixable.Var v -> B.Set.singleton v
     | Ast.Expr.Fixable.LetRecIn (v, e1, e2)

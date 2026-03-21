@@ -19,16 +19,16 @@ module Make(B:LibCore.Ident.Fields)(BTarget:LibCore.Ident.FreshableFields) = str
     let open Ast.TopLvl in
     match toplvl with
     | TypeDecl (tylist, binding_type, ty) ->
-       let acc, ty = Ty.Fixed.Deep.foldmapfgh process LibCore.Lib.idacc LibCore.Lib.idacc ty acc in
+       let acc, ty = Ty.Fixed.Deep.foldmapfgh process LibCore.Aux.idacc LibCore.Aux.idacc ty acc in
        acc, TypeDecl (tylist, binding_type, ty)
     | Let (binding, expr) ->
-       let acc, expr = Expr.Fixed.Deep.foldmapfg process LibCore.Lib.idacc expr acc in
+       let acc, expr = Expr.Fixed.Deep.foldmapfg process LibCore.Aux.idacc expr acc in
        acc, Let(binding, expr)
     | LetRec( binding, expr) ->
-       let acc, expr = Expr.Fixed.Deep.foldmapfg process LibCore.Lib.idacc expr acc in
+       let acc, expr = Expr.Fixed.Deep.foldmapfg process LibCore.Aux.idacc expr acc in
        acc, LetRec(binding, expr)
     | External (binding, ty, s) ->
-       let acc, ty = Ty.Fixed.Deep.foldmapfgh process LibCore.Lib.idacc LibCore.Lib.idacc ty acc in
+       let acc, ty = Ty.Fixed.Deep.foldmapfgh process LibCore.Aux.idacc LibCore.Aux.idacc ty acc in
        acc, External (binding, ty, s)
 
   let passe = {

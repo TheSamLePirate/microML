@@ -19,13 +19,13 @@ module Make(B:Bindings)(F:Fields) = struct
     | Integer a, Integer b -> a == b
     | Bool a, Bool b -> a == b
     | Char a, Char b -> a == b
-    | Tuple l1, Tuple l2 -> Option.map (fun li -> List.fold_left (fun acc (a, b) -> acc && eq a b) true li) (Lib.zip_opt l1 l2) |> Option.value ~default:false
+    | Tuple l1, Tuple l2 -> Option.map (fun li -> List.fold_left (fun acc (a, b) -> acc && eq a b) true li) (Aux.zip_opt l1 l2) |> Option.value ~default:false
     | Construct (f1, e1), Construct (f2, e2) -> F.equal f1 f2 && eq e1 e2
     | Record l1, Record l2 ->
        Option.map (fun li -> List.fold_left (fun acc ((n1, e1), (n2, e2)) ->
                                  acc && F.equal n1 n2 && eq e1 e2
                                ) true li)
-         (Lib.zip_opt (F.Map.to_list l1) (F.Map.to_list l2))
+         (Aux.zip_opt (F.Map.to_list l1) (F.Map.to_list l2))
        |> Option.value ~default:false
     | _ -> false
   let rec pp f = function

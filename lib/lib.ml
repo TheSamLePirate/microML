@@ -1,90 +1,9 @@
-let id x = x
-let passacc _ acc = acc
-let idacc x acc = acc, x
-let didacc _d x acc = acc, x
 
-let ( << ) f g x = f (g x)
-let ( >> ) g f x = f (g x)
-
-let (--) a b = Seq.init (b - a) (fun x -> x + a) |> List.of_seq
-
-let zip_opt xs ys =
-  let rec aux acc xs ys =
-    match xs, ys with
-    | [], [] -> Some (List.rev acc)
-    | x::xs, y::ys -> aux ((x,y)::acc) xs ys
-    | _ -> None
-  in
-  aux [] xs ys
-
-let group_by (li : ('a * 'b) list) : ('a * 'b list) list =
-  let rec f groups = function
-    | (k, v) :: tl ->
-       let samek, others = List.partition (fun (k2, _v) -> k2 = k) tl in
-       let values = List.map snd samek in
-       f ((k, (v::values))::groups) others
-    | [] -> List.rev groups
-  in f [] li
-
-let group_count cmp li =
-  let rec f acc curr cnt = function
-    | [] -> (curr, cnt)::acc
-    | hd::tl -> if 0 = cmp hd curr then f acc curr (cnt + 1) tl
-                else f ((curr, cnt)::acc) hd 1 tl
-  in match List.sort cmp li with
-     | hd::tl -> f [] hd 1 tl
-     | [] -> []
-
-module ListApp (A:Applicatives.Applicative) = struct
-  open A
-  let foldmap_snd f (i, j) = ret (fun j -> i, j) <*> f j
-  let fold_left_map f l = List.fold_right (fun x xs -> ret List.cons <*> f x <*> xs) l (ret [])
-  let fold_left_map_couple f g l = List.fold_right (fun (a, b) xs -> ret List.cons <*> (ret (fun a b -> a, b) <*> f a <*> g b ) <*> xs) l (ret [])
-  let fold_left_map_snd f l = fold_left_map (foldmap_snd f) l
-end
-
-module type Fixable3 = sig
-  type ('a, 'b, 'c) t
-  val pp : (Format.formatter -> 'a -> unit) ->
-           (Format.formatter -> 'b -> unit) ->
-           (Format.formatter -> 'c -> unit) ->
-           Format.formatter -> ('a, 'b, 'c) t -> unit
-  module Make : functor (F:Applicatives.Applicative) -> sig
-    val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('a, 'b, 'c) t -> ('ra, 'rb, 'rc) t F.t
-  end
-end
-
-module type Alignable3 = sig
-  type ('a, 'b, 'c) t
-  val align : ('a1,'b1,'c1) t -> ('a2,'b2,'c2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) ) t option
-end
-
-module type Fixable4 = sig
-  type ('a, 'b, 'c, 'd) t
-  val pp : (Format.formatter -> 'a -> unit) ->
-           (Format.formatter -> 'b -> unit) ->
-           (Format.formatter -> 'c -> unit) ->
-           (Format.formatter -> 'd -> unit) ->
-           Format.formatter -> ('a, 'b, 'c, 'd) t -> unit
-  module Make : functor (F:Applicatives.Applicative) -> sig
-    val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('a, 'b, 'c, 'd) t -> ('ra, 'rb, 'rc, 'rd) t F.t
-  end
-end
-
-module type Fixable5 = sig
-  type ('a, 'b, 'c, 'd, 'e) t
-  val pp : (Format.formatter -> 'a -> unit) ->
-           (Format.formatter -> 'b -> unit) ->
-           (Format.formatter -> 'c -> unit) ->
-           (Format.formatter -> 'd -> unit) ->
-           (Format.formatter -> 'e -> unit) ->
-           Format.formatter -> ('a, 'b, 'c, 'd, 'e) t -> unit
-  module Make : functor (F:Applicatives.Applicative) -> sig
-    val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('e -> 're F.t) -> ('a, 'b, 'c, 'd, 'e) t -> ('ra, 'rb, 'rc, 'rd, 're) t F.t
-  end
-end
-
-module MakeSurface3 (F : Fixable3) = struct
+module MakeSurface3 (F : Fixables.Fixable3) : sig
+  val fold : ('a -> 'acc -> 'acc) -> ('b -> 'acc -> 'acc) -> ('c -> 'acc -> 'acc) -> ('a, 'b, 'c) F.t -> 'acc -> 'acc
+  val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('a1, 'b1, 'c1) F.t -> ('a2, 'b2, 'c2) F.t
+  val foldmap : ('a -> 'acc -> 'acc * 'a2) -> ('b -> 'acc -> 'acc * 'b2) -> ('c -> 'acc -> 'acc *'c2) -> ('a, 'b, 'c) F.t -> 'acc -> 'acc * ('a2, 'b2, 'c2) F.t
+end = struct
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
     Fold.foldmap x
@@ -97,7 +16,7 @@ module MakeSurface3 (F : Fixable3) = struct
     M.foldmap x
 end
 
-module MakeSurface4 (F : Fixable4) = struct
+module MakeSurface4 (F : Fixables.Fixable4) = struct
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
     Fold.foldmap x
@@ -110,7 +29,7 @@ module MakeSurface4 (F : Fixable4) = struct
     M.foldmap x
 end
 
-module MakeSurface5 (F : Fixable5) = struct
+module MakeSurface5 (F : Fixables.Fixable5) = struct
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
     Fold.foldmap x
@@ -123,7 +42,7 @@ module MakeSurface5 (F : Fixable5) = struct
     M.foldmap x
 end
 
-module Fix3 (F : Fixable3) = struct
+module Fix3 (F : Fixables.Fixable3) = struct
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, 'a, 'b) F.t
 
   let decoration (F (d, _)) = d
@@ -145,19 +64,19 @@ module Fix3 (F : Fixable3) = struct
   module Deep = struct
     let rec mapfg f g (F (d, x)) = F (d, Surface.map (mapfg f g) f g x)
     let rec foldfg f g (F (_, x)) acc = Surface.fold (foldfg f g) f g x acc
-    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id x) (* bottomup reduce *)
-    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id x))
+    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) Fun.id Fun.id x) (* bottomup reduce *)
+    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) Fun.id Fun.id x))
 
     let rec foldmapfg f g (F (d, x)) acc =
       let acc, x = Surface.foldmap (foldmapfg f g) f g x acc in
       acc, F( d, x)
 
     let rec foldmap f (F (d, x)) acc =
-      let acc, x = Surface.foldmap (foldmap f) idacc idacc x acc in
+      let acc, x = Surface.foldmap (foldmap f) Aux.idacc Aux.idacc x acc in
       let acc, tofix = f acc x in
       acc, F( d, tofix)
     let rec decorate f g (F (d, x)) =
-      let x = Surface.map (decorate f g) id id x in
+      let x = Surface.map (decorate f g) Fun.id Fun.id x in
       F (f d x, x)
   end
 
@@ -172,7 +91,7 @@ module Fix3 (F : Fixable3) = struct
   let pp ppb ppc f p = pp ppb ppc p f
 end
 
-module Fix4 (F : Fixable4) = struct
+module Fix4 (F : Fixables.Fixable4) = struct
   type ('deco, 'a, 'b, 'c) t = F of 'deco * (('deco, 'a, 'b, 'c) t, 'a, 'b, 'c) F.t
 
   let decoration (F (d, _)) = d
@@ -192,17 +111,17 @@ module Fix4 (F : Fixable4) = struct
   module Deep = struct
     let rec mapfg f g h (F (d, x)) = F (d, Surface.map (mapfg f g h) f g h x)
     let rec foldfg f g h (F (_, x)) acc = Surface.fold (foldfg f g h) f g h x acc
-    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id id x)
-    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id id x))
+    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) Fun.id Fun.id Fun.id x)
+    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) Fun.id Fun.id Fun.id x))
     let rec foldmap f (F (d, x)) acc =
-      let acc, x = Surface.foldmap (foldmap f) idacc idacc idacc x acc in
+      let acc, x = Surface.foldmap (foldmap f) Aux.idacc Aux.idacc Aux.idacc x acc in
       let acc, tofix = f acc x in
       acc, F( d, tofix)
     let rec foldmapfgh f g h (F (d, x)) acc =
       let acc, x = Surface.foldmap (foldmapfgh f g h) f g h x acc in
       acc, F( d, x)
     let rec exists f (F (_, x)) =
-      f x || Surface.fold (fun x acc -> acc || exists f x) passacc passacc passacc x false
+      f x || Surface.fold (fun x acc -> acc || exists f x) Aux.passacc Aux.passacc Aux.passacc x false
   end
 
   module Traverse = struct
@@ -216,7 +135,7 @@ module Fix4 (F : Fixable4) = struct
 end
 
 
-module Fix5 (F : Fixable5) = struct
+module Fix5 (F : Fixables.Fixable5) = struct
   type ('deco, 'a, 'b, 'c, 'd) t = F of 'deco * (('deco, 'a, 'b, 'c, 'd) t, 'a, 'b, 'c, 'd) F.t
 
   let decoration (F (d, _)) = d
@@ -236,17 +155,17 @@ module Fix5 (F : Fixable5) = struct
   module Deep = struct
     let rec mapfg f g h i (F (d, x)) = F (d, Surface.map (mapfg f g h i) f g h i x)
     let rec foldfg f g h i (F (_, x)) acc = Surface.fold (foldfg f g h i) f g h i x acc
-    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) id id id id x)
-    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) id id id id x))
+    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) Fun.id Fun.id Fun.id Fun.id x)
+    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) Fun.id Fun.id Fun.id Fun.id x))
     let rec foldmap f (F (d, x)) acc =
-      let acc, x = Surface.foldmap (foldmap f) idacc idacc idacc idacc x acc in
+      let acc, x = Surface.foldmap (foldmap f) Aux.idacc Aux.idacc Aux.idacc Aux.idacc x acc in
       let acc, tofix = f acc x in
       acc, F( d, tofix)
     let rec foldmapfghi f g h i (F (d, x)) acc =
       let acc, x = Surface.foldmap (foldmapfghi f g h i) f g h i x acc in
       acc, F( d, x)
     let rec exists f (F (_, x)) =
-      f x || Surface.fold (fun x acc -> acc || exists f x) passacc passacc passacc passacc x false
+      f x || Surface.fold (fun x acc -> acc || exists f x) Aux.passacc Aux.passacc Aux.passacc Aux.passacc x false
   end
 
   module Traverse = struct
@@ -260,7 +179,7 @@ module Fix5 (F : Fixable5) = struct
 end
 
 (* Quand un type récursif inclue un autre type récursif et qu'ils partagent deux variables de polymorphisme *)
-module FixMut  (F : Fixable4) (G : Fixable3) = struct
+module FixMut  (F : Fixables.Fixable4) (G : Fixables.Fixable3) = struct
 
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, ('deco, 'a, 'b) u, 'a, 'b) F.t
   and ('deco, 'a, 'b) u = G of 'deco *  (('deco, 'a, 'b) u, 'a, 'b) G.t
@@ -281,14 +200,14 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
   module Deep = struct
     let rec mapfg_u f g (G (d, x)) = G (d, SurfaceG.map (mapfg_u f g) f g x)
     let rec mapfg f g (F (d, x)) = F (d, SurfaceF.map (mapfg f g) (mapfg_u f g) f g x)
-    let rec reduce_u f (G (_, x)) = f (SurfaceG.map (reduce_u f) id id x)
-    let rec reduce f g (F (_, x)) = f (SurfaceF.map (reduce f g) (reduce_u g) id id x)
+    let rec reduce_u f (G (_, x)) = f (SurfaceG.map (reduce_u f) Fun.id Fun.id x)
+    let rec reduce f g (F (_, x)) = f (SurfaceF.map (reduce f g) (reduce_u g) Fun.id Fun.id x)
 
-    let rec reduce_u_d f (G (d, x)) = f d (SurfaceG.map (reduce_u_d f) id id x)
-    let rec reduce_d f g (F (d, x)) = f d (SurfaceF.map (reduce_d f g) (reduce_u_d g) id id x)
+    let rec reduce_u_d f (G (d, x)) = f d (SurfaceG.map (reduce_u_d f) Fun.id Fun.id x)
+    let rec reduce_d f g (F (d, x)) = f d (SurfaceF.map (reduce_d f g) (reduce_u_d g) Fun.id Fun.id x)
 
 
-    let rec reduce_de f (F (d, x)) = f d (SurfaceF.map (reduce_de f) id id id x)
+    let rec reduce_de f (F (d, x)) = f d (SurfaceF.map (reduce_de f) Fun.id Fun.id Fun.id x)
 
 
     let rec foldmapfg_u f g (G (d, x)) acc =
@@ -299,22 +218,22 @@ module FixMut  (F : Fixable4) (G : Fixable3) = struct
       acc, F( d, x)
 
 
-    let rec map f (F (d, x)) = F( d, f (SurfaceF.map (map f) id id id x))
+    let rec map f (F (d, x)) = F( d, f (SurfaceF.map (map f) Fun.id Fun.id Fun.id x))
     (* map des décorations *)
     let rec decorate_u f (G (d, x)) =
-      let x = SurfaceG.map (decorate_u f) id id x in
+      let x = SurfaceG.map (decorate_u f) Fun.id Fun.id x in
       G (f d x, x)
     let rec decorate f g (F (d, x)) =
-      let x = SurfaceF.map (decorate f g) (decorate_u g) id id x in
+      let x = SurfaceF.map (decorate f g) (decorate_u g) Fun.id Fun.id x in
       F (f d x, x)
 
     (* foldmap des décorations *)
     let rec decorate_foldmap_u f (G (d, x)) acc =
-      let acc, x = SurfaceG.foldmap (decorate_foldmap_u f) idacc idacc x acc in
+      let acc, x = SurfaceG.foldmap (decorate_foldmap_u f) Aux.idacc Aux.idacc x acc in
       let acc, d = f d x acc in
       acc, G (d, x)
     let rec decorate_foldmap f g (F (d, x)) acc =
-      let acc, x = SurfaceF.foldmap (decorate_foldmap f g) (decorate_foldmap_u g) idacc idacc x acc in
+      let acc, x = SurfaceF.foldmap (decorate_foldmap f g) (decorate_foldmap_u g) Aux.idacc Aux.idacc x acc in
       let acc, d = f d x acc in
       acc, F (d, x)
 

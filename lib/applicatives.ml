@@ -35,3 +35,11 @@ module Accumule (Acc : sig type t
   let ret x = Acc.zero, x
   let (<*>) (acc1, f1) (acc2, x) = Acc.merge acc1 acc2, f1 x
 end
+
+module ListApp (A:Applicative) = struct
+  open A
+  let foldmap_snd f (i, j) = ret (fun j -> i, j) <*> f j
+  let fold_left_map f l = List.fold_right (fun x xs -> ret List.cons <*> f x <*> xs) l (ret [])
+  let fold_left_map_couple f g l = List.fold_right (fun (a, b) xs -> ret List.cons <*> (ret (fun a b -> a, b) <*> f a <*> g b ) <*> xs) l (ret [])
+  let fold_left_map_snd f l = fold_left_map (foldmap_snd f) l
+end

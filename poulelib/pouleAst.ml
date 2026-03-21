@@ -3,7 +3,7 @@ module type Applicative = LibCore.Applicatives.Applicative
 module Fix3 = LibCore.Lib.Fix3
 module Fix4 = LibCore.Lib.Fix4
 module Fix5 = LibCore.Lib.Fix5
-module ListApp = LibCore.Lib.ListApp
+module ListApp = LibCore.Applicatives.ListApp
 module Ident = LibCore.Ident
 
 module Term = struct

@@ -41,7 +41,7 @@ end = struct
 
   let ppty f ty = Ty.Fixed.pp F.pp BT.pp BTyNamed.pp f ty
 
-  let ftv_ty ty = Ty.Fixed.Deep.foldfg Lib.passacc (BT.Set.add) Lib.passacc ty BT.Set.empty
+  let ftv_ty ty = Ty.Fixed.Deep.foldfg Aux.passacc (BT.Set.add) Aux.passacc ty BT.Set.empty
   let ftv_env env = B.Map.fold (fun _binding scheme acc -> BT.Set.union acc (BT.Set.of_list scheme.vars) ) env.bindings BT.Set.empty
 
   let generalize env ty =
@@ -75,7 +75,7 @@ end = struct
     let (env, assocvars), nvars = List.fold_left_map (fun (env, assocvars) var ->
                              let env, var' = fresh'var env in
                              (env, BT.Map.add var var' assocvars), var') (env, BT.Map.empty) tyvars in
-    env, nvars, Ty.Fixed.Deep.mapfg Lib.id (fun var -> Option.value (BT.Map.find_opt var assocvars) ~default:var) Lib.id ty
+    env, nvars, Ty.Fixed.Deep.mapfg Fun.id (fun var -> Option.value (BT.Map.find_opt var assocvars) ~default:var) Fun.id ty
 
   let insert_mono env binding ty =
     { env with bindings = B.Map.add binding {vars=[]; body=ty} env.bindings}
@@ -104,7 +104,7 @@ end = struct
     (* Format.printf "env:%a@\nunify @[<v>-%a@\n-%a@]@\n" ppenv env ppty (tf location t1) ppty (tf location t2); *)
     match t1, t2 with
     | Ty.Named (li1, d1), Ty.Named (li2, d2) when BTyNamed.equal d1 d2 -> (* TODO instancier sauf si c'est pas type somme *)
-       let env, li = match Lib.zip_opt li1 li2 with
+       let env, li = match Aux.zip_opt li1 li2 with
            | None -> Pp.failwith "%a vs %a" ppty (tf location t1) ppty (tf location t2)
            | Some li -> List.fold_left_map (fun env (t1, t2) -> unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
        let li = List.map (tf location) li
@@ -137,7 +137,7 @@ end = struct
        in let env, li = merge env [] li1 li2
           in env, Ty.Sum li
     | Ty.Tuple li1, Ty.Tuple li2 ->
-       begin match Lib.zip_opt li1 li2 with
+       begin match Aux.zip_opt li1 li2 with
        | None -> assert false (* TODO erreur de type *)
        | Some li ->
           let env, li = List.fold_left_map (fun env (t1, t2) -> unify location env (Ty.Fixed.unfix t1) (Ty.Fixed.unfix t2)) env li in
@@ -347,7 +347,7 @@ end = struct
 
   let process e env =
     let env, e = Expr.Fixed.Traverse.decorate_foldmap ty_expr (fun _ -> assert false)
-                   Lib.didacc Lib.didacc e env in
+                   Aux.didacc Aux.didacc e env in
     (* Format.printf "env=%a@\n" ppenv env; *)
     let app (loc, ty) _ =
       let ty = apply_ty env ty in
@@ -360,12 +360,12 @@ end = struct
     | TypeDecl (tylist, binding, ty) -> (* TODO checker la forme du type, lui interdire des typesum pas au premier niveau *)
        let env = Ty.Fixed.Deep.foldfg (fun field env ->
                      {env with fieldmap = F.Map.add field binding env.fieldmap}
-                   ) Lib.passacc Lib.passacc ty env in
+                   ) Aux.passacc Aux.passacc ty env in
        let (map, _), tylist' = List.fold_left_map (fun (map, fresh) ty ->
                                    let map = BTyVar.Map.add ty fresh map in
                                    (map, BT.next fresh), fresh
                             ) (BTyVar.Map.empty, BT.init) tylist in
-       let ty = Ty.Fixed.Deep.mapfg Lib.id (fun v -> BTyVar.Map.find v map) Lib.id ty in (* TODO erreur sur les types non bindés *)
+       let ty = Ty.Fixed.Deep.mapfg Fun.id (fun v -> BTyVar.Map.find v map) Fun.id ty in (* TODO erreur sur les types non bindés *)
        let env = { env with ty_named = BTyNamed.Map.add binding (tylist', ty) env.ty_named }
        in env, TypeDecl (tylist', binding, ty)
     | Let (binding, expr) ->
@@ -385,7 +385,7 @@ end = struct
        env, LetRec(binding, expr)
     | External (binding, ty, s) ->
        let map = BTyVar.Map.empty in (* TODO peut-être un forall ? *)
-       let ty = Ty.Fixed.Deep.mapfg Lib.id (fun v -> BTyVar.Map.find v map) Lib.id ty in
+       let ty = Ty.Fixed.Deep.mapfg Fun.id (fun v -> BTyVar.Map.find v map) Fun.id ty in
        let env = insert_poly env binding ty in
        env, External (binding, ty, s)
   let passe = {
