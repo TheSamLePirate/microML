@@ -42,6 +42,7 @@ end
 
 module Fix3 (F : Fixables.Fixable3) = struct
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, 'a, 'b) F.t
+  type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t
 
   let decoration (F (d, _)) = d
   let fix a d = F (d, a)

@@ -1,44 +1,7 @@
 open T
 (* permet de décrire des parcours récursifs de types explicitement récursifs *)
-module Fix3 :
-  functor (F : Fixables.Fixable3) ->
-    sig
-      type ('deco, 'a, 'b) t (* = F of 'deco * (('deco, 'a, 'b) t, 'a, 'b) F.t *)
-      val decoration : ('deco, 'b, 'c) t -> 'deco
-      val fix : (('deco, 'b, 'c) t, 'b, 'c) F.t -> 'deco -> ('deco, 'b, 'c) t
-      val unfix : ('deco, 'b, 'c) t -> (('deco, 'b, 'c) t, 'b, 'c) F.t
-      val wrap_acc : ((('deco, 'b, 'c) t, 'b, 'c) F.t -> 'e -> 'f * (('deco, 'g, 'h) t, 'g, 'h) F.t) -> ('deco, 'b, 'c) t -> 'e -> 'f * ('deco, 'g, 'h) t
-     (* réécritures par une Applicative *)
-      module MakeApp :
-        functor (A : Applicatives.Applicative) ->
-          sig
-            val foldmap : ('a -> 'b A.t) -> ('c -> 'd A.t) -> ('e, 'a, 'c) t -> ('e, 'b, 'd) t A.t
-          end
-     (* réécritures en surface du type *)
-      module Surface : Fixables.SigSurface3 with type  ('a, 'b, 'c) t =  ('a, 'b, 'c) F.t
-     (* réécritures en profondeur du type *)
-      module Deep :
-        sig
-          val mapfg : ('a -> 'b) -> ('c -> 'd) -> ('deco, 'a, 'c) t -> ('deco, 'b, 'd) t
-          val foldfg : ('a, 'acc) fold -> ('c, 'acc) fold -> (('deco, 'a, 'c) t, 'acc) fold
-          val reduce : (('a, 'b, 'c) F.t -> 'a) -> ('deco, 'b, 'c) t -> 'a
-          val map : ((('deco, 'b, 'c) t, 'd, 'e) F.t -> (('deco, 'b, 'c) t, 'b, 'c) F.t) -> ('deco, 'd, 'e) t -> ('deco, 'b, 'c) t
-          val foldmapfg : ('a, 'acc, 'c) fun_foldmap -> ('d, 'acc, 'e) fun_foldmap -> (('deco, 'a, 'd) t, 'acc, ('deco, 'c, 'e) t) fun_foldmap
-          val foldmap : ('acc -> (('b, 'c, 'd) t, 'e, 'f) F.t -> 'acc * (('b, 'c, 'd) t, 'c, 'd) F.t) -> ('b, 'e, 'f) t -> 'acc -> 'acc * ('b, 'c, 'd) t
-          val decorate : ('deco_start -> (('deco_end, 'c, 'd) t, 'c, 'd) F.t -> 'deco_end) -> 'e -> ('deco_start, 'c, 'd) t -> ('deco_end, 'c, 'd) t
-        end
-      (* module Traverse qui permet de contrôler le parcours de l'AST. La première fonction foldmap sur ('a, 'b, 'c) t, 'b, 'c) F.t (une valeur défixée) et kes fonctions qu'elle reçoit en paramètres permettent de contrôler le parcours : la première fonction permet de rentrer dans ses enfants, la seconde gère le cas par défaut le parcours du cas par défaut (propagation de l'accumulateur en déconstruisant le F.t) puis elle reçoit une valeur et un accumulateur et renvoie accumulateur * valeur *)
-      module Traverse :
-        sig
-          val foldmap :
-            (  (('deco, 'b, 'c) t, 'acc, ('deco, 'e, 'f) t) fun_foldmap ->
-               ((('deco, 'b, 'c) t, 'b, 'c) F.t, 'acc, (('deco, 'e, 'f) t, 'e, 'f) F.t) fun_foldmap -> 'acc -> (('deco, 'b, 'c) t, 'b, 'c) F.t ->
-               'acc * (('deco, 'e, 'f) t, 'e, 'f) F.t) ->
-            ('b, 'acc, 'e) fun_foldmap -> ('c, 'acc, 'f) fun_foldmap ->
-            (('deco, 'b, 'c) t, 'acc, ('deco, 'e, 'f) t) fun_foldmap
-        end
-      val pp : 'a Pp.printer -> 'b Pp.printer -> ('c, 'a, 'b) t Pp.printer
-    end
+module Fix3 : functor (F : Fixables.Fixable3) -> Fixables.Fixed3 with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t
+
 module Fix4 :
   functor (F : Fixables.Fixable4) ->
     sig
