@@ -14,8 +14,8 @@ let mk_arrow_ty sp ep args ret = fix_ty sp ep (Fixable.Ty.TyArrow (args, ret))
 let mk_fun_decl name args ret = PouleAst.TopLevel.FunDecl { name; args; ret }
 let mk_pred_decl name args = PouleAst.TopLevel.PredDecl { name; args }
 let mk_axiom name formula = PouleAst.TopLevel.Axiom { name; formula }
-let mk_theorem name formula proof = PouleAst.TopLevel.Theorem { name; formula; proof }
-let mk_check proof formula = PouleAst.TopLevel.Check { proof; formula }
+let mk_theorem name formula proof = PouleAst.TopLevel.Theorem { name=Some name; formula; proof }
+let mk_check proof formula = PouleAst.TopLevel.Theorem { name=None; proof; formula }
 let mk_type_decl name params constructors = PouleAst.TopLevel.TypeDecl { name; params; constructors }
 %}
 

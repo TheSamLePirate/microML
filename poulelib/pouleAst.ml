@@ -44,13 +44,9 @@ module TopLevel = struct
         formula : 'formula;
       }
     | Theorem of {
-        name : 'name;
+        name : 'name option;
         formula : 'formula;
         proof : 'proof;
-      }
-    | Check of {
-        proof : 'proof;
-        formula : 'formula;
       }
   let pp pp_ty pp_formula pp_proof pp_name f = function
     | TypeDecl {name; params; constructors} -> Format.fprintf f "type %a(%a) = %a"
@@ -63,7 +59,7 @@ module TopLevel = struct
     | PredDecl {name; args} -> Format.fprintf f "pred %a : (%a)" pp_name name
                              (Pp.list (Pp.sep ",@ ") pp_ty) args
     | Axiom {name; formula} -> Format.fprintf f "axiom %a : %a" pp_name name pp_formula formula
-    | Theorem {name; formula; proof} -> Format.fprintf f "@[<v 2>theorem %a :@\n%a@][<v 2>=@\n%a]"
+    | Theorem {name=Some name; formula; proof} -> Format.fprintf f "@[<v 2>theorem %a :@\n%a@][<v 2>=@\n%a]"
                                       pp_name name pp_formula formula pp_proof proof
-    | Check {proof; formula} -> Format.fprintf f "check %a@\n[<v 2>:@\n%a@]" pp_proof proof pp_formula formula
+    | Theorem {name = None; proof; formula} -> Format.fprintf f "check %a@\n[<v 2>:@\n%a@]" pp_proof proof pp_formula formula
 end
