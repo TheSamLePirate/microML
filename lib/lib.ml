@@ -1,6 +1,3 @@
-type ('a, 'acc, 'b) fun_foldmap = 'a -> 'acc -> 'acc * 'b
-type ('a, 'acc) fold = 'a -> 'acc -> 'acc
-
 module MakeSurface3 (F : Fixables.Fixable3) : Fixables.SigSurface3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t = struct
   type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t
   let fold (type acc) x =

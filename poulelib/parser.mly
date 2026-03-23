@@ -255,25 +255,15 @@ term_list:
       { [$1] }
   | term COMMA term_list
       { $1 :: $3 }
-
 proof:
   | proof_app
       { $1 }
 
 proof_app:
-  | proof_atom proof_args
-      {
-        List.fold_left
-          (fun acc arg -> fix_proof $startpos $endpos (Fixable.ProofTerm.App (acc, arg)))
-          $1
-          $2
-      }
-
-proof_args:
   | proof_atom
-      { [$1] }
-  | proof_atom proof_args
-      { $1 :: $2 }
+      { $1 }
+  | proof_app proof_atom %prec APP
+      { fix_proof $startpos $endpos (Fixable.ProofTerm.App ($1, $2)) }
 
 proof_atom:
   | LIDENT

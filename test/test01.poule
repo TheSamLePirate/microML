@@ -1,0 +1,23 @@
+type Nat =
+  Zero
+| Succ of Nat
+
+type 'a List =
+  Nil
+| Cons of 'a * List('a)
+
+pred even : (Nat)
+fundecl plus : (Nat, Nat) -> Nat
+
+axiom even_zero : even(Zero)
+
+theorem id_and : forall (x : Nat). even(x) -> even(x) =
+  gen (x : Nat) =>
+  fun (h : even(x)) =>
+    h
+
+check
+  fun (p : even(Zero) /\ even(Zero)) =>
+    fst p
+:
+  even(Zero) /\ even(Zero) -> even(Zero)

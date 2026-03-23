@@ -8,9 +8,14 @@ let parse_file filename =
     let p = Parser.main Lexer.token lexbuf in
     close_in ic;
     p
-  with e ->
-    close_in_noerr ic;
-    raise e
+  with
+  | Parser.Error ->
+     let p = lexbuf.lex_curr_p in
+     let tok = Lexing.lexeme lexbuf in
+     failwith
+       (Printf.sprintf "parse error at %s:%d:%d near %S"
+          p.pos_fname p.pos_lnum (p.pos_cnum - p.pos_bol) tok)
+  |  e -> close_in_noerr ic; raise e
 
 let pipeline options filename =
   parse_file filename

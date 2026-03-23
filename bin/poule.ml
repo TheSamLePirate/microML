@@ -16,4 +16,9 @@ let () =
     match !file with
     | Some f -> f
     | None -> raise (Arg.Bad "missing input file") in
-  ignore (Poulelib.Passes.pipeline options filename)
+  try
+    ignore (Poulelib.Passes.pipeline options filename)
+  with (Failure msg) as e ->
+    Format.printf "%s\n\n" msg;
+    raise e
+

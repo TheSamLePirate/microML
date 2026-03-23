@@ -1,6 +1,4 @@
-
-type ('a, 'acc, 'b) fun_foldmap = 'a -> 'acc -> 'acc * 'b
-type ('a, 'acc) fold = 'a -> 'acc -> 'acc
+open T
 (* permet de décrire des parcours récursifs de types explicitement récursifs *)
 module Fix3 :
   functor (F : Fixables.Fixable3) ->

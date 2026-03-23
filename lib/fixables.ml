@@ -1,3 +1,4 @@
+open T
 
 module type Fixable3 = sig
   type ('a, 'b, 'c) t
@@ -30,21 +31,21 @@ end
 
 module type SigSurface3 = sig
   type ('a, 'b, 'c) t
-  val fold : ('a -> 'acc -> 'acc) -> ('b -> 'acc -> 'acc) -> ('c -> 'acc -> 'acc) -> ('a, 'b, 'c) t -> 'acc -> 'acc
+  val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> (('a, 'b, 'c) t, 'acc) fold
   val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('a1, 'b1, 'c1) t -> ('a2, 'b2, 'c2) t
-  val foldmap : ('a -> 'acc -> 'acc * 'a2) -> ('b -> 'acc -> 'acc * 'b2) -> ('c -> 'acc -> 'acc *'c2) -> ('a, 'b, 'c) t -> 'acc -> 'acc * ('a2, 'b2, 'c2) t
+  val foldmap : ('a, 'acc, 'a2) fun_foldmap -> ('b, 'acc, 'b2) fun_foldmap -> ('c, 'acc, 'c2) fun_foldmap -> (('a, 'b, 'c) t, 'acc, ('a2, 'b2, 'c2) t) fun_foldmap
 end
 
 module type SigSurface4 = sig
   type ('a, 'b, 'c, 'd) t
-  val fold : ('a -> 'acc -> 'acc) -> ('b -> 'acc -> 'acc) -> ('c -> 'acc -> 'acc) -> ('d -> 'acc -> 'acc) -> ('a, 'b, 'c, 'd) t -> 'acc -> 'acc
+  val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> ('d, 'acc) fold -> (('a, 'b, 'c, 'd) t, 'acc) fold
   val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('d1 -> 'd2) ->  ('a1, 'b1, 'c1, 'd1) t -> ('a2, 'b2, 'c2, 'd2) t
-  val foldmap : ('a -> 'acc -> 'acc * 'a2) -> ('b -> 'acc -> 'acc * 'b2) -> ('c -> 'acc -> 'acc *'c2) -> ('d -> 'acc -> 'acc *'d2) -> ('a, 'b, 'c, 'd) t -> 'acc -> 'acc * ('a2, 'b2, 'c2, 'd2) t
+  val foldmap : ('a, 'acc, 'a2) fun_foldmap-> ('b, 'acc, 'b2) fun_foldmap -> ('c, 'acc, 'c2) fun_foldmap -> ('d, 'acc, 'd2) fun_foldmap -> (('a, 'b, 'c, 'd) t, 'acc, ('a2, 'b2, 'c2, 'd2) t) fun_foldmap
 end
 
 module type SigSurface5 = sig
   type ('a, 'b, 'c, 'd, 'e) t
-  val fold : ('a -> 'acc -> 'acc) -> ('b -> 'acc -> 'acc) -> ('c -> 'acc -> 'acc) -> ('d -> 'acc -> 'acc) -> ('e -> 'acc -> 'acc) -> ('a, 'b, 'c, 'd, 'e) t -> 'acc -> 'acc
+  val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> ('d, 'acc) fold -> ('e, 'acc) fold -> (('a, 'b, 'c, 'd, 'e) t, 'acc) fold
   val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('d1 -> 'd2) -> ('e1 -> 'e2) ->  ('a1, 'b1, 'c1, 'd1, 'e1) t -> ('a2, 'b2, 'c2, 'd2, 'e2) t
-  val foldmap : ('a -> 'acc -> 'acc * 'a2) -> ('b -> 'acc -> 'acc * 'b2) -> ('c -> 'acc -> 'acc *'c2) -> ('d -> 'acc -> 'acc *'d2) -> ('e -> 'acc -> 'acc *'e2) -> ('a, 'b, 'c, 'd, 'e) t -> 'acc -> 'acc * ('a2, 'b2, 'c2, 'd2, 'e2) t
+  val foldmap : ('a, 'acc, 'a2) fun_foldmap -> ('b, 'acc, 'b2) fun_foldmap -> ('c, 'acc, 'c2) fun_foldmap -> ('d, 'acc, 'd2) fun_foldmap -> ('e, 'acc, 'e2) fun_foldmap -> (('a, 'b, 'c, 'd, 'e) t, 'acc, ('a2, 'b2, 'c2, 'd2, 'e2) t) fun_foldmap
 end
