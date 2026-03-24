@@ -1,9 +1,9 @@
 open T
 (* permet de décrire des parcours récursifs de types explicitement récursifs *)
-module Fix3 : functor (F : Fixables.Fixable3) -> Fixables.Fixed3 with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t
+module Fix3 : functor (F : Fixables3.Fixable3) -> Fixables3.Fixed3 with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t
 
 module Fix4 :
-  functor (F : Fixables.Fixable4) ->
+  functor (F : Fixables4.Fixable4) ->
     sig
       type ('deco, 'a, 'b, 'c) t (* = F of 'deco * (('deco, 'a, 'b, 'c) t, 'a, 'b, 'c) F.t *)
       val decoration : ('deco, 'b, 'c, 'd) t -> 'deco
@@ -13,7 +13,7 @@ module Fix4 :
       module MakeApp : functor (A : Applicatives.Applicative) -> sig
             val foldmap : ('a -> 'b A.t) -> ('c -> 'd A.t) -> ('e -> 'f A.t) -> ('deco, 'a, 'c, 'e) t -> ('deco, 'b, 'd, 'f) t A.t
           end
-      module Surface : Fixables.SigSurface4 with type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t
+      module Surface : Fixables4.SigSurface4 with type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t
       module Deep :
         sig
           val mapfg : ('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> ('deco, 'a, 'c, 'e) t -> ('deco, 'b, 'd, 'f) t
@@ -40,7 +40,7 @@ module Fix4 :
       val pp : 'a Pp.printer -> 'b Pp.printer -> 'c Pp.printer -> ('deco, 'a, 'b, 'c) t Pp.printer
     end
 module Fix5 :
-  functor (F : Fixables.Fixable5) ->
+  functor (F : Fixables5.Fixable5) ->
     sig
       type ('deco, 'a, 'b, 'c, 'd) t (* = F of 'deco * (('deco, 'a, 'b, 'c, 'd) t, 'a, 'b, 'c, 'd) F.t
 *)
@@ -51,7 +51,7 @@ module Fix5 :
       module MakeApp : functor (A : Applicatives.Applicative) -> sig
             val foldmap : ('a -> 'b A.t) -> ('c -> 'd A.t) -> ('e -> 'f A.t) -> ('g -> 'h A.t) -> ('i, 'a, 'c, 'e, 'g) t -> ('i, 'b, 'd, 'f, 'h) t A.t
           end
-      module Surface : Fixables.SigSurface5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t
+      module Surface : Fixables5.SigSurface5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t
       module Deep :
         sig
           val mapfg : ('a -> 'b) -> ('c -> 'd) -> ('e -> 'f) -> ('g -> 'h) -> ('deco, 'a, 'c, 'e, 'g) t -> ('deco, 'b, 'd, 'f, 'h) t
@@ -78,7 +78,7 @@ module Fix5 :
       val pp : 'a Pp.printer -> 'b Pp.printer -> 'c Pp.printer -> 'd Pp.printer -> ('deco, 'a, 'b, 'c, 'd) t Pp.printer
     end
 module FixMut :
-  functor (F : Fixables.Fixable4) (G : Fixables.Fixable3) ->
+  functor (F : Fixables4.Fixable4) (G : Fixables3.Fixable3) ->
     sig
       type ('deco, 'a, 'b) t (* = F of 'deco * (('deco, 'a, 'b) t, ('deco, 'a, 'b) u, 'a, 'b) F.t *)
       and ('deco, 'a, 'b) u (* = G of 'deco *  (('deco, 'a, 'b) u, 'a, 'b) G.t *)
@@ -89,8 +89,8 @@ module FixMut :
       val unfix_u : ('deco, 'b, 'c) u -> (('deco, 'b, 'c) u, 'b, 'c) G.t
       val unfix : ('deco, 'b, 'c) t -> (('deco, 'b, 'c) t, ('deco, 'b, 'c) u, 'b, 'c) F.t
       val wrap_acc : ((('deco, 'b, 'c) t, ('deco, 'b, 'c) u, 'b, 'c) F.t -> 'd -> 'e * (('deco, 'f, 'g) t, ('deco, 'f, 'g) u, 'f, 'g) F.t) -> ('deco, 'b, 'c) t -> 'd -> 'e * ('deco, 'f, 'g) t
-      module SurfaceF : Fixables.SigSurface4 with type  ('a, 'b, 'c, 'd) t =  ('a, 'b, 'c, 'd) F.t
-      module SurfaceG : Fixables.SigSurface3 with type  ('a, 'b, 'c) t =  ('a, 'b, 'c) G.t
+      module SurfaceF : Fixables4.SigSurface4 with type  ('a, 'b, 'c, 'd) t =  ('a, 'b, 'c, 'd) F.t
+      module SurfaceG : Fixables3.SigSurface3 with type  ('a, 'b, 'c) t =  ('a, 'b, 'c) G.t
       module Deep :
         sig
           val mapfg_u : ('a -> 'b) -> ('c -> 'd) -> ('deco, 'a, 'c) u -> ('deco, 'b, 'd) u

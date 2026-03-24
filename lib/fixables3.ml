@@ -12,29 +12,10 @@ module type Alignable3 = sig
   type ('a, 'b, 'c) t
   val align : ('a1, 'b1, 'c1) t -> ('a2, 'b2, 'c2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) ) t option
 end
-module type Alignable4 = sig
-  type ('a, 'b, 'c, 'd) t
-  val align : ('a1, 'b1, 'c1, 'd1) t -> ('a2, 'b2, 'c2, 'd2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2), ('d1 * 'd2)) t option
-end
-module type Alignable5 = sig
-  type ('a, 'b, 'c, 'd, 'e) t
-  val align : ('a1, 'b1, 'c1, 'd1, 'e1) t -> ('a2, 'b2, 'c2, 'd2, 'e2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2), ('d1 * 'd2), ('e1 * 'e2)) t option
-end
 
-module type Fixable4 = sig
-  type ('a, 'b, 'c, 'd) t
-  val pp : 'a Pp.printer -> 'b Pp.printer -> 'c Pp.printer -> 'd Pp.printer -> ('a, 'b, 'c, 'd) t Pp.printer
-  module Make : functor (F:Applicatives.Applicative) -> sig
-    val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('a, 'b, 'c, 'd) t -> ('ra, 'rb, 'rc, 'rd) t F.t
-  end
-end
-
-module type Fixable5 = sig
-  type ('a, 'b, 'c, 'd, 'e) t
-  val pp : 'a Pp.printer -> 'b Pp.printer -> 'c Pp.printer -> 'd Pp.printer -> 'e Pp.printer -> ('a, 'b, 'c, 'd, 'e) t Pp.printer
-  module Make : functor (F:Applicatives.Applicative) -> sig
-    val foldmap : ('a -> 'ra F.t) -> ('b -> 'rb F.t) -> ('c -> 'rc F.t) -> ('d -> 'rd F.t) -> ('e -> 're F.t) -> ('a, 'b, 'c, 'd, 'e) t -> ('ra, 'rb, 'rc, 'rd, 're) t F.t
-  end
+module type Comparable3 = sig
+  include Alignable3
+  val tag : ('a, 'b, 'c) t -> int
 end
 
 module type SigSurface3 = sig
@@ -42,20 +23,6 @@ module type SigSurface3 = sig
   val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> (('a, 'b, 'c) t, 'acc) fold
   val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('a1, 'b1, 'c1) t -> ('a2, 'b2, 'c2) t
   val foldmap : ('a, 'acc, 'a2) fun_foldmap -> ('b, 'acc, 'b2) fun_foldmap -> ('c, 'acc, 'c2) fun_foldmap -> (('a, 'b, 'c) t, 'acc, ('a2, 'b2, 'c2) t) fun_foldmap
-end
-
-module type SigSurface4 = sig
-  type ('a, 'b, 'c, 'd) t
-  val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> ('d, 'acc) fold -> (('a, 'b, 'c, 'd) t, 'acc) fold
-  val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('d1 -> 'd2) ->  ('a1, 'b1, 'c1, 'd1) t -> ('a2, 'b2, 'c2, 'd2) t
-  val foldmap : ('a, 'acc, 'a2) fun_foldmap-> ('b, 'acc, 'b2) fun_foldmap -> ('c, 'acc, 'c2) fun_foldmap -> ('d, 'acc, 'd2) fun_foldmap -> (('a, 'b, 'c, 'd) t, 'acc, ('a2, 'b2, 'c2, 'd2) t) fun_foldmap
-end
-
-module type SigSurface5 = sig
-  type ('a, 'b, 'c, 'd, 'e) t
-  val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> ('d, 'acc) fold -> ('e, 'acc) fold -> (('a, 'b, 'c, 'd, 'e) t, 'acc) fold
-  val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('d1 -> 'd2) -> ('e1 -> 'e2) ->  ('a1, 'b1, 'c1, 'd1, 'e1) t -> ('a2, 'b2, 'c2, 'd2, 'e2) t
-  val foldmap : ('a, 'acc, 'a2) fun_foldmap -> ('b, 'acc, 'b2) fun_foldmap -> ('c, 'acc, 'c2) fun_foldmap -> ('d, 'acc, 'd2) fun_foldmap -> ('e, 'acc, 'e2) fun_foldmap -> (('a, 'b, 'c, 'd, 'e) t, 'acc, ('a2, 'b2, 'c2, 'd2, 'e2) t) fun_foldmap
 end
 
 module type Fixed3 = sig
@@ -95,4 +62,21 @@ module type Fixed3 = sig
             (('deco, 'b, 'c) t, 'acc, ('deco, 'e, 'f) t) fun_foldmap
         end
       val pp : 'a Pp.printer -> 'b Pp.printer -> ('c, 'a, 'b) t Pp.printer
+end
+
+module type Aligned3 = sig
+  type ('a, 'b, 'c) fixable
+  type ('deco, 'b, 'c) fixed
+  val same_shape : ('deco1, 'b, 'c) fixed -> ('deco2, 'e, 'f) fixed -> bool
+  val equals : 'b equals -> 'c equals -> ('deco, 'b, 'c) fixed equals
+  val fold2 : on_mismatch:((('d1,'b,'c) fixed * ( 'd2,'e,'f) fixed), 'acc) fold -> (('b * 'e), 'acc) fold -> (('c * 'f), 'acc) fold -> ('d1,'b,'c) fixed -> ('d2,'e,'f) fixed -> 'acc -> 'acc
+  val for_all2 : on_mismatch:( ('d1, 'b, 'c) fixed -> ('d2, 'e, 'f) fixed -> bool) -> ('b -> 'e -> bool) -> ('c -> 'f -> bool) -> ('d1,'b,'c) fixed -> ('d2,'e,'f) fixed -> bool
+  val foldmap2 : on_mismatch:(( (('deco, 'b, 'c) fixed * ('deco, 'e, 'f) fixed), 'acc, ('deco, 'h, 'i) fixed) fun_foldmap ) ->
+                 ('b * 'e, 'acc, 'h) fun_foldmap -> ('c * 'f, 'acc, 'i) fun_foldmap ->
+                 ('deco, 'b, 'c) fixed * ('deco, 'e, 'f) fixed -> 'acc -> 'acc * ('deco, 'h, 'i) fixed
+end
+module type Comparor3 = sig
+  type ('a, 'b, 'c) fixable
+  type ('deco, 'b, 'c) fixed
+  val compare : 'b compare -> 'c compare -> ('d, 'b, 'c) fixed compare
 end

@@ -1,4 +1,4 @@
-module MakeSurface3 (F : Fixables.Fixable3) : Fixables.SigSurface3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t = struct
+module MakeSurface3 (F : Fixables3.Fixable3) : Fixables3.SigSurface3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t = struct
   type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
@@ -12,7 +12,7 @@ module MakeSurface3 (F : Fixables.Fixable3) : Fixables.SigSurface3 with type ('a
     M.foldmap x
 end
 
-module MakeSurface4 (F : Fixables.Fixable4) = struct
+module MakeSurface4 (F : Fixables4.Fixable4) : Fixables4.SigSurface4 with type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t = struct
   type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
@@ -26,7 +26,7 @@ module MakeSurface4 (F : Fixables.Fixable4) = struct
     M.foldmap x
 end
 
-module MakeSurface5 (F : Fixables.Fixable5) = struct
+module MakeSurface5 (F : Fixables5.Fixable5) : Fixables5.SigSurface5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t = struct
   type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
@@ -40,7 +40,7 @@ module MakeSurface5 (F : Fixables.Fixable5) = struct
     M.foldmap x
 end
 
-module Fix3 (F : Fixables.Fixable3) = struct
+module Fix3 (F : Fixables3.Fixable3) : Fixables3.Fixed3 with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t = struct
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, 'a, 'b) F.t
   type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t
 
@@ -90,7 +90,7 @@ module Fix3 (F : Fixables.Fixable3) = struct
   let pp ppb ppc f p = pp ppb ppc p f
 end
 
-module Fix4 (F : Fixables.Fixable4) = struct
+module Fix4 (F : Fixables4.Fixable4) = struct
   type ('deco, 'a, 'b, 'c) t = F of 'deco * (('deco, 'a, 'b, 'c) t, 'a, 'b, 'c) F.t
 
   let decoration (F (d, _)) = d
@@ -134,7 +134,7 @@ module Fix4 (F : Fixables.Fixable4) = struct
 end
 
 
-module Fix5 (F : Fixables.Fixable5) = struct
+module Fix5 (F : Fixables5.Fixable5) = struct
   type ('deco, 'a, 'b, 'c, 'd) t = F of 'deco * (('deco, 'a, 'b, 'c, 'd) t, 'a, 'b, 'c, 'd) F.t
 
   let decoration (F (d, _)) = d
@@ -178,7 +178,7 @@ module Fix5 (F : Fixables.Fixable5) = struct
 end
 
 (* Quand un type récursif inclue un autre type récursif et qu'ils partagent deux variables de polymorphisme *)
-module FixMut  (F : Fixables.Fixable4) (G : Fixables.Fixable3) = struct
+module FixMut  (F : Fixables4.Fixable4) (G : Fixables3.Fixable3) = struct
 
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, ('deco, 'a, 'b) u, 'a, 'b) F.t
   and ('deco, 'a, 'b) u = G of 'deco *  (('deco, 'a, 'b) u, 'a, 'b) G.t
