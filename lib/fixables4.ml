@@ -13,6 +13,11 @@ module type Alignable4 = sig
   val align : ('a1, 'b1, 'c1, 'd1) t -> ('a2, 'b2, 'c2, 'd2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2), ('d1 * 'd2)) t option
 end
 
+module type Comparable4 = sig
+  include Alignable4
+  val tag : ('a, 'b, 'c, 'd) t -> int
+end
+
 module type SigSurface4 = sig
   type ('a, 'b, 'c, 'd) t
   val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> ('d, 'acc) fold -> (('a, 'b, 'c, 'd) t, 'acc) fold

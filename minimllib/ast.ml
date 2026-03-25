@@ -1,4 +1,4 @@
-open LibCore.Lib
+open LibCore
 module Aux = LibCore.Aux
 module Pp = LibCore.Pp
 module ListApp = LibCore.Applicatives.ListApp
@@ -57,7 +57,7 @@ module Ty = struct
                else None
             | _ -> None
   end
-  module Fixed = Fix4(Base)
+  module Fixed = Fix4.Fix(Base)
 
 end
 
@@ -158,7 +158,7 @@ module Expr = struct
         | IfThenElse (a, b, c) -> ret (fun a b c -> IfThenElse (a, b, c)) <*> f a <*> f b <*> f c
     end
   end
-  module Fixed = FixMut(Fixable)(Pattern)
+  module Fixed = Lib.FixMut(Fixable)(Pattern)
 end
 
 module TopLvl = struct

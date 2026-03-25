@@ -1,25 +1,21 @@
-module Fix3 = LibCore.Lib.Fix3
-module Fix4 = LibCore.Lib.Fix4
-module Fix5 = LibCore.Fix5.Fix
-module Pp = LibCore.Pp
-module Ident = LibCore.Ident
+open LibCore
 
 module Term = struct
-  module Fixed = Fix4(Fixable.Term)
+  module Fixed = Fix4.Fix(Fixable.Term)
   let fix loc node = Fixed.fix node loc
 end
 
 module Ty = struct
-  module Fixed = Fix3(Fixable.Ty)
+  module Fixed = Fix3.Fix(Fixable.Ty)
   let fix loc node = Fixed.fix node loc
 end
 
 module Formula = struct
-  module Fixed = Fix5(Fixable.Formula)
+  module Fixed = Fix5.Fix(Fixable.Formula)
   let fix loc node = Fixed.fix node loc
 end
 module ProofTerm = struct
-  module Fixed = Fix5(Fixable.ProofTerm)
+  module Fixed = Fix5.Fix(Fixable.ProofTerm)
   let fix loc node = Fixed.fix node loc
 end
 

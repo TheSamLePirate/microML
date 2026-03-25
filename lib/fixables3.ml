@@ -12,14 +12,6 @@ module type Alignable3 = sig
   type ('a, 'b, 'c) t
   val align : ('a1, 'b1, 'c1) t -> ('a2, 'b2, 'c2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) ) t option
 end
-module type Alignable4 = sig
-  type ('a, 'b, 'c, 'd) t
-  val align : ('a1, 'b1, 'c1, 'd1) t -> ('a2, 'b2, 'c2, 'd2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) , ('d1 * 'd2) ) t option
-end
-module type Alignable5 = sig
-  type ('a, 'b, 'c, 'd, 'e) t
-  val align : ('a1, 'b1, 'c1, 'd1, 'e1) t -> ('a2, 'b2, 'c2, 'd2, 'e2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) , ('d1 * 'd2), ('e1 * 'e2) ) t option
-end
 
 module type Comparable3 = sig
   include Alignable3

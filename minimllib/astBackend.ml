@@ -1,10 +1,9 @@
 module Pp = LibCore.Pp
 module type Applicative = LibCore.Applicatives.Applicative
 module ListApp = LibCore.Applicatives.ListApp
-module Fix3 = LibCore.Lib.Fix3
 module Ident = LibCore.Ident
 
-open LibCore.Lib
+open LibCore
 open LibCore.Aux
 
 module Fixable = struct
@@ -106,7 +105,7 @@ let pp_rhs ppfun ppvar f = function
 
 end
 
-module Fixed = Fix3(Fixable)
+module Fixed = Fix3.Fix(Fixable)
 
 type ('deco, 'fun_id, 'var) func = {
   id : 'fun_id;
