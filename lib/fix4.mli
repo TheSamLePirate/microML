@@ -5,7 +5,8 @@ module MakeSurface : functor (F : Fixables4.Fixable4) -> Fixables4.SigSurface4 w
 module Fix :
   functor (F : Fixables4.Fixable4) ->
     sig
-      type ('deco, 'a, 'b, 'c) t (* = F of 'deco * (('deco, 'a, 'b, 'c) t, 'a, 'b, 'c) F.t *)
+      type ('deco, 'a, 'b, 'c) t
+      type ('a, 'b, 'c, 'd) fixable = ('a, 'b, 'c, 'd) F.t
       val decoration : ('deco, 'b, 'c, 'd) t -> 'deco
       val fix : (('deco, 'b, 'c, 'd) t, 'b, 'c, 'd) F.t -> 'deco -> ('deco, 'b, 'c, 'd) t
       val unfix : ('deco, 'b, 'c, 'd) t -> (('deco, 'b, 'c, 'd) t, 'b, 'c, 'd) F.t

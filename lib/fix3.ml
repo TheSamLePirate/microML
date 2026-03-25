@@ -36,23 +36,18 @@ module Fix (F : Fixables3.Fixable3) : Fixables3.Fixed3 with type ('a, 'b, 'c) fi
   (* Walkers pour les réécritures *)
 
   module Surface = MakeSurface(F)
-
   module Deep = struct
     let mapfg f g x = Fixed5.Deep.mapfg f g Fun.id Fun.id x
     let foldfg f g x acc = Fixed5.Deep.foldfg f g Aux.passacc Aux.passacc x acc
-
     let reduce f x = Fixed5.Deep.reduce f x
     let map f x = Fixed5.Deep.map f x
     let foldmapfg f g x acc = Fixed5.Deep.foldmapfghi f g Aux.idacc Aux.idacc x acc
-
     let exists = Fixed5.Deep.exists
     let foldmap = Fixed5.Deep.foldmap
     let decorate f x = Fixed5.Deep.decorate f x
   end
-
   module Traverse = struct
     let foldmap f g h x acc = Fixed5.Traverse.foldmap f g h Aux.idacc Aux.idacc x acc
   end
-
   let pp ppb ppc f p = Fixed5.pp ppb ppc Pp.nope Pp.nope f p
 end

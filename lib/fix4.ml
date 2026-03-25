@@ -21,44 +21,32 @@ module MakeSurface (F : Fixables4.Fixable4) : Fixables4.SigSurface4 with type ('
 end
 
 module Fix (F : Fixables4.Fixable4) = struct
-  type ('deco, 'a, 'b, 'c) t = F of 'deco * (('deco, 'a, 'b, 'c) t, 'a, 'b, 'c) F.t
-
-  let decoration (F (d, _)) = d
-  let fix a d = F (d, a)
-  let unfix (F (_, a)) = a
-  let wrap_acc f (F (deco, x)) acc =
-    let acc, x = f x acc in acc, F (deco, x)
-
+  module Fixed5 = Fix5.Fix(FixableConvert4to5(F))
+  type ('deco, 'a, 'b, 'c) t = ('deco, 'a, 'b, 'c, unit)  Fixed5.t
+  type ('a, 'b, 'c, 'd) fixable = ('a, 'b, 'c, 'd) F.t
+  let decoration = Fixed5.decoration
+  let fix = Fixed5.fix
+  let unfix = Fixed5.unfix
+  let wrap_acc = Fixed5.wrap_acc
   module MakeApp (A:Applicatives.Applicative) = struct
     open A
     module S = F.Make(A)
-    let rec foldmap f g h (F (d, x)) = ret (fun x -> F (d, x)) <*> S.foldmap (foldmap f g h) f g h x
+    let rec foldmap f g h x =
+      let decoration = decoration x in
+      ret (fun x -> fix x decoration) <*> S.foldmap (foldmap f g h) f g h (unfix x)
   end
-
   module Surface = MakeSurface(F)
-
   module Deep = struct
-    let rec mapfg f g h (F (d, x)) = F (d, Surface.map (mapfg f g h) f g h x)
-    let rec foldfg f g h (F (_, x)) acc = Surface.fold (foldfg f g h) f g h x acc
-    let rec reduce f (F (_, x)) = f (Surface.map (reduce f) Fun.id Fun.id Fun.id x)
-    let rec map f (F (d, x)) = F( d, f (Surface.map (map f) Fun.id Fun.id Fun.id x))
-    let rec foldmap f (F (d, x)) acc =
-      let acc, x = Surface.foldmap (foldmap f) Aux.idacc Aux.idacc Aux.idacc x acc in
-      let acc, tofix = f acc x in
-      acc, F( d, tofix)
-    let rec foldmapfgh f g h (F (d, x)) acc =
-      let acc, x = Surface.foldmap (foldmapfgh f g h) f g h x acc in
-      acc, F( d, x)
-    let rec exists f (F (_, x)) =
-      f x || Surface.fold (fun x acc -> acc || exists f x) Aux.passacc Aux.passacc Aux.passacc x false
+    let mapfg f g h x = Fixed5.Deep.mapfg f g h Fun.id x
+    let foldfg f g h x acc = Fixed5.Deep.foldfg f g h Aux.passacc x acc
+    let reduce f x = Fixed5.Deep.reduce f x
+    let map f x = Fixed5.Deep.map f x
+    let foldmapfgh f g h x acc = Fixed5.Deep.foldmapfghi f g h Aux.idacc x acc
+    let exists = Fixed5.Deep.exists
+    let foldmap = Fixed5.Deep.foldmap
   end
-
   module Traverse = struct
-    let rec foldmap f g h i (F (d, x)) acc =
-      let acc, x = f (foldmap f g h i) (Surface.foldmap (foldmap f g h i) g h i) acc x in
-      acc, F (d, x)
+    let foldmap f g h i x acc = Fixed5.Traverse.foldmap f g h i Aux.idacc x acc
   end
-
-  let pp ppb ppc ppd = Deep.reduce (fun x f -> F.pp (fun f g -> g f) ppb ppc ppd f x)
-  let pp ppb ppc ppd f p = pp ppb ppc ppd p f
+  let pp ppb ppc ppd f p = Fixed5.pp ppb ppc ppd Pp.nope f p
 end
