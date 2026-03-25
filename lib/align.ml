@@ -28,6 +28,20 @@ module Make3 (B:Fixables3.Alignable3) (Fixed:Fixables3.Fixed3 with type ('a, 'b,
          Fixed.Surface.fold (fold2 ~on_mismatch fold_b fold_c) fold_b fold_c couples_t acc
   let fold2 ~on_mismatch fold_b fold_c x1 x2 acc = fold2 ~on_mismatch fold_b fold_c (x1, x2) acc
 
+  let rec foldmap2_deco ~merge_deco ~on_mismatch foldmap_b foldmap_c (x1, x2) acc =
+    let unfixed1 = Fixed.unfix x1
+    and unfixed2 = Fixed.unfix x2
+    and deco1 = Fixed.decoration x1
+    and deco2 = Fixed.decoration x2 in
+    let foldmap_b' (a, b) acc = foldmap_b ((deco1, a), (deco2, b)) acc
+    and foldmap_c' (a, b) acc = foldmap_c ((deco1, a), (deco2, b)) acc in
+    match B.align unfixed1 unfixed2 with
+      | None -> on_mismatch (x1, x2) acc
+      | Some couples_t ->
+         let acc, out = Fixed.Surface.foldmap (foldmap2_deco ~merge_deco ~on_mismatch foldmap_b foldmap_c)
+                          foldmap_b' foldmap_c' couples_t acc
+         in acc, Fixed.fix out (merge_deco deco1 deco2)
+
   let rec foldmap2 ~on_mismatch foldmap_b foldmap_c (x1, x2) acc =
     let unfixed1 = Fixed.unfix x1
     and unfixed2 = Fixed.unfix x2 in

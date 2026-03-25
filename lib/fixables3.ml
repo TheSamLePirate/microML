@@ -12,6 +12,14 @@ module type Alignable3 = sig
   type ('a, 'b, 'c) t
   val align : ('a1, 'b1, 'c1) t -> ('a2, 'b2, 'c2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) ) t option
 end
+module type Alignable4 = sig
+  type ('a, 'b, 'c, 'd) t
+  val align : ('a1, 'b1, 'c1, 'd1) t -> ('a2, 'b2, 'c2, 'd2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) , ('d1 * 'd2) ) t option
+end
+module type Alignable5 = sig
+  type ('a, 'b, 'c, 'd, 'e) t
+  val align : ('a1, 'b1, 'c1, 'd1, 'e1) t -> ('a2, 'b2, 'c2, 'd2, 'e2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) , ('d1 * 'd2), ('e1 * 'e2) ) t option
+end
 
 module type Comparable3 = sig
   include Alignable3
@@ -71,6 +79,11 @@ module type Aligned3 = sig
   val equals : 'b equals -> 'c equals -> ('deco, 'b, 'c) fixed equals
   val fold2 : on_mismatch:((('d1,'b,'c) fixed * ( 'd2,'e,'f) fixed), 'acc) fold -> (('b * 'e), 'acc) fold -> (('c * 'f), 'acc) fold -> ('d1,'b,'c) fixed -> ('d2,'e,'f) fixed -> 'acc -> 'acc
   val for_all2 : on_mismatch:( ('d1, 'b, 'c) fixed -> ('d2, 'e, 'f) fixed -> bool) -> ('b -> 'e -> bool) -> ('c -> 'f -> bool) -> ('d1,'b,'c) fixed -> ('d2,'e,'f) fixed -> bool
+  val foldmap2_deco : merge_deco:('deco -> 'deco -> 'deco) ->
+                      on_mismatch:(( (('deco, 'b, 'c) fixed * ('deco, 'e, 'f) fixed), 'acc, ('deco, 'h, 'i) fixed) fun_foldmap ) ->
+                      (('deco * 'b) * ('deco * 'e), 'acc, 'h) fun_foldmap ->
+                      (('deco * 'c) * ('deco * 'f), 'acc, 'i) fun_foldmap ->
+                      ('deco, 'b, 'c) fixed * ('deco, 'e, 'f) fixed -> 'acc -> 'acc * ('deco, 'h, 'i) fixed
   val foldmap2 : on_mismatch:(( (('deco, 'b, 'c) fixed * ('deco, 'e, 'f) fixed), 'acc, ('deco, 'h, 'i) fixed) fun_foldmap ) ->
                  ('b * 'e, 'acc, 'h) fun_foldmap -> ('c * 'f, 'acc, 'i) fun_foldmap ->
                  ('deco, 'b, 'c) fixed * ('deco, 'e, 'f) fixed -> 'acc -> 'acc * ('deco, 'h, 'i) fixed
