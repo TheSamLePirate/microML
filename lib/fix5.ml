@@ -1,4 +1,4 @@
-module MakeSurface (F : Fixables5.Fixable5) : Fixables5.SigSurface5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t = struct
+module MakeSurface (F : Fixables5.Fixable) : Fixables5.SigSurface with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t = struct
   type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd, 'e) F.t
   let fold (type acc) x =
     let module Fold = F.Make(Applicatives.Fold(struct type t = acc end) ) in
@@ -12,7 +12,8 @@ module MakeSurface (F : Fixables5.Fixable5) : Fixables5.SigSurface5 with type ('
     M.foldmap x
 end
 
-module Fix (F : Fixables5.Fixable5) = struct
+module Fix (F : Fixables5.Fixable) = struct
+  type ('a, 'b, 'c, 'd, 'e) fixable = ('a, 'b, 'c, 'd, 'e) F.t
   type ('deco, 'a, 'b, 'c, 'd) t = F of 'deco * (('deco, 'a, 'b, 'c, 'd) t, 'a, 'b, 'c, 'd) F.t
 
   let decoration (F (d, _)) = d

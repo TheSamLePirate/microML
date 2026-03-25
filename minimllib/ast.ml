@@ -1,7 +1,5 @@
 open LibCore
-module Aux = LibCore.Aux
-module Pp = LibCore.Pp
-module ListApp = LibCore.Applicatives.ListApp
+module ListApp = Applicatives.ListApp
 module type Applicative = LibCore.Applicatives.Applicative
 
 module Ty = struct

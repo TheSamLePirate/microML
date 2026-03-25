@@ -1,4 +1,4 @@
-module Make3 (B:Fixables3.Comparable3) (Fixed:Fixables3.Fixed3 with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) B.t) : Fixables3.Comparor3 with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) B.t and type ('deco, 'b, 'c) fixed = ('deco, 'b, 'c) Fixed.t = struct
+module Make3 (B:Fixables3.Comparable) (Fixed:Fixables3.Fixed with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) B.t) : Fixables3.Comparor with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) B.t and type ('deco, 'b, 'c) fixed = ('deco, 'b, 'c) Fixed.t = struct
 
   type ('a, 'b, 'c) fixable = ('a, 'b, 'c) B.t
   type ('deco, 'b, 'c) fixed = ('deco, 'b, 'c) Fixed.t

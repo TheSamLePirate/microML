@@ -1,10 +1,6 @@
-module AlignableConvert3to5 (F : Fixables3.Alignable3) : Fixables5.Alignable5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c) F.t = struct
-  type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c) F.t
-  let align t1 t2 = F.align t1 t2
-end
 
 (* Quand un type récursif inclue un autre type récursif et qu'ils partagent deux variables de polymorphisme *)
-module FixMut  (F : Fixables4.Fixable4) (G : Fixables3.Fixable3) = struct
+module FixMut  (F : Fixables4.Fixable) (G : Fixables3.Fixable) = struct
 
   type ('deco, 'a, 'b) t = F of 'deco * (('deco, 'a, 'b) t, ('deco, 'a, 'b) u, 'a, 'b) F.t
   and ('deco, 'a, 'b) u = G of 'deco *  (('deco, 'a, 'b) u, 'a, 'b) G.t

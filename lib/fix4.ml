@@ -1,5 +1,4 @@
-
-module FixableConvert4to5 (F : Fixables4.Fixable4) : Fixables5.Fixable5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd) F.t = struct
+module FixableConvert4to5 (F : Fixables4.Fixable) : Fixables5.Fixable with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd) F.t = struct
   type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd) F.t
   let pp pp_a pp_b pp_c pp_d _pp_e = F.pp pp_a pp_b pp_c pp_d
   module Make (A:Applicatives.Applicative) = struct
@@ -7,12 +6,8 @@ module FixableConvert4to5 (F : Fixables4.Fixable4) : Fixables5.Fixable5 with typ
     let foldmap mapa mapb mapc mapd _mape itm = M.foldmap mapa mapb mapc mapd itm
   end
 end
-module AlignableConvert4to5 (F : Fixables4.Alignable4) : Fixables5.Alignable5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd) F.t = struct
-  type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c, 'd) F.t
-  let align t1 t2 = F.align t1 t2
-end
 
-module MakeSurface (F : Fixables4.Fixable4) : Fixables4.SigSurface4 with type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t = struct
+module MakeSurface (F : Fixables4.Fixable) : Fixables4.SigSurface with type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t = struct
   type ('a, 'b, 'c, 'd) t = ('a, 'b, 'c, 'd) F.t
   module Surface5 = Fix5.MakeSurface(FixableConvert4to5(F))
   let fold fa fb fc fd x acc = Surface5.fold fa fb fc fd Aux.passacc x acc
@@ -20,7 +15,7 @@ module MakeSurface (F : Fixables4.Fixable4) : Fixables4.SigSurface4 with type ('
   let foldmap fa fb fc fd x acc = Surface5.foldmap fa fb fc fd Aux.idacc x acc
 end
 
-module Fix (F : Fixables4.Fixable4) = struct
+module Fix (F : Fixables4.Fixable) = struct
   module Fixed5 = Fix5.Fix(FixableConvert4to5(F))
   type ('deco, 'a, 'b, 'c) t = ('deco, 'a, 'b, 'c, unit)  Fixed5.t
   type ('a, 'b, 'c, 'd) fixable = ('a, 'b, 'c, 'd) F.t

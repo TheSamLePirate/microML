@@ -1,4 +1,4 @@
-module FixableConvert3to5 (F : Fixables3.Fixable3) : Fixables5.Fixable5 with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c) F.t = struct
+module FixableConvert3to5 (F : Fixables3.Fixable) : Fixables5.Fixable with type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c) F.t = struct
   type ('a, 'b, 'c, 'd, 'e) t = ('a, 'b, 'c) F.t
   let pp pp_a pp_b pp_c _pp_d _pp_e = F.pp pp_a pp_b pp_c
   module Make (A:Applicatives.Applicative) = struct
@@ -7,7 +7,7 @@ module FixableConvert3to5 (F : Fixables3.Fixable3) : Fixables5.Fixable5 with typ
   end
 end
 
-module MakeSurface (F : Fixables3.Fixable3) : Fixables3.SigSurface3 with type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t = struct
+module MakeSurface (F : Fixables3.Fixable) : Fixables3.SigSurface with type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t = struct
   module Surface5 = Fix5.MakeSurface(FixableConvert3to5(F))
   type ('a, 'b, 'c) t = ('a, 'b, 'c) F.t
   let fold fa fb fc x acc = Surface5.fold fa fb fc Aux.passacc Aux.passacc x acc
@@ -15,8 +15,10 @@ module MakeSurface (F : Fixables3.Fixable3) : Fixables3.SigSurface3 with type ('
   let foldmap fa fb fc x acc = Surface5.foldmap fa fb fc Aux.idacc Aux.idacc x acc
 end
 
-module Fix (F : Fixables3.Fixable3) : Fixables3.Fixed3 with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t = struct
- module Fixed5 = Fix5.Fix(FixableConvert3to5(F))
+module Fix (F : Fixables3.Fixable) : Fixables3.Fixed with type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t = struct
+
+  module Fixed5 = Fix5.Fix(FixableConvert3to5(F))
+
   type ('deco, 'a, 'b) t = ('deco, 'a, 'b, unit, unit)  Fixed5.t
   type ('a, 'b, 'c) fixable = ('a, 'b, 'c) F.t
 

@@ -1,5 +1,3 @@
-open Miniml
-
 let debug = ref []
 let eval = ref false
 let file = ref None
@@ -28,9 +26,9 @@ let () =
     | None -> raise (Arg.Bad "missing input file")
   in try
     if !eval then
-      ignore (Passes.pipeline_eval options filename)
+      ignore (Miniml.Passes.pipeline_eval options filename)
     else
-      ignore (Passes.pipeline_llvm options filename !output_file !runtime_file !runtime_header_dir)
+      ignore (Miniml.Passes.pipeline_llvm options filename !output_file !runtime_file !runtime_header_dir)
   with (Failure msg) as e ->
     Format.printf "%s\n\n" msg;
     raise e

@@ -7,3 +7,4 @@ val group_count : ('a -> 'a -> int) -> 'a list -> ('a * int) list
 val passacc : 'a -> 'b -> 'b
 val idacc : 'a -> 'b -> 'b * 'a
 val didacc : 'a -> 'b -> 'c -> 'c * 'b
+val forall2 : 'a -> 'b -> bool

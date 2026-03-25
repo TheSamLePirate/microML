@@ -34,3 +34,4 @@ let group_count cmp li =
 let passacc _ acc = acc
 let idacc x acc = acc, x
 let didacc _d x acc = acc, x
+let forall2 _ _ = true

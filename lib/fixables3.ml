@@ -1,6 +1,6 @@
 open T
 
-module type Fixable3 = sig
+module type Fixable = sig
   type ('a, 'b, 'c) t
   val pp : 'a Pp.printer -> 'b Pp.printer -> 'c Pp.printer -> ('a, 'b, 'c) t Pp.printer
   module Make : functor (F:Applicatives.Applicative) -> sig
@@ -8,26 +8,28 @@ module type Fixable3 = sig
   end
 end
 
-module type Alignable3 = sig
+module type Alignable = sig
   type ('a, 'b, 'c) t
   val align : ('a1, 'b1, 'c1) t -> ('a2, 'b2, 'c2) t -> ( ('a1 * 'a2), ('b1 * 'b2), ('c1 * 'c2) ) t option
 end
 
-module type Comparable3 = sig
-  include Alignable3
+module type Comparable = sig
+  include Alignable
   val tag : ('a, 'b, 'c) t -> int
 end
 
-module type SigSurface3 = sig
+module type SigSurface = sig
   type ('a, 'b, 'c) t
   val fold : ('a, 'acc) fold -> ('b, 'acc) fold -> ('c, 'acc) fold -> (('a, 'b, 'c) t, 'acc) fold
   val map : ('a1 -> 'a2) -> ('b1 -> 'b2) -> ('c1 -> 'c2) -> ('a1, 'b1, 'c1) t -> ('a2, 'b2, 'c2) t
   val foldmap : ('a, 'acc, 'a2) fun_foldmap -> ('b, 'acc, 'b2) fun_foldmap -> ('c, 'acc, 'c2) fun_foldmap -> (('a, 'b, 'c) t, 'acc, ('a2, 'b2, 'c2) t) fun_foldmap
 end
 
-module type Fixed3 = sig
+module type Fixed = sig
   type ('a, 'b, 'c) fixable
-  type ('deco, 'a, 'b) t (* = F of 'deco * (('deco, 'a, 'b) t, 'a, 'b) F.t *)
+  module Fixed5 : Fixables5.Fixed with type ('a, 'b, 'c, 'd, 'e) fixable = ('a, 'b, 'c) fixable
+  type ('deco, 'a, 'b) t = ('deco, 'a, 'b, unit, unit)  Fixed5.t
+
       val decoration : ('deco, 'b, 'c) t -> 'deco
       val fix : (('deco, 'b, 'c) t, 'b, 'c) fixable -> 'deco -> ('deco, 'b, 'c) t
       val unfix : ('deco, 'b, 'c) t -> (('deco, 'b, 'c) t, 'b, 'c) fixable
@@ -39,7 +41,7 @@ module type Fixed3 = sig
             val foldmap : ('a -> 'b A.t) -> ('c -> 'd A.t) -> ('e, 'a, 'c) t -> ('e, 'b, 'd) t A.t
           end
      (* réécritures en surface du type *)
-      module Surface : SigSurface3 with type  ('a, 'b, 'c) t =  ('a, 'b, 'c) fixable
+      module Surface : SigSurface with type  ('a, 'b, 'c) t =  ('a, 'b, 'c) fixable
      (* réécritures en profondeur du type *)
       module Deep :
         sig
@@ -65,7 +67,7 @@ module type Fixed3 = sig
       val pp : 'a Pp.printer -> 'b Pp.printer -> ('c, 'a, 'b) t Pp.printer
 end
 
-module type Aligned3 = sig
+module type Aligned = sig
   type ('a, 'b, 'c) fixable
   type ('deco, 'b, 'c) fixed
   val same_shape : ('deco1, 'b, 'c) fixed -> ('deco2, 'e, 'f) fixed -> bool
@@ -81,7 +83,7 @@ module type Aligned3 = sig
                  ('b * 'e, 'acc, 'h) fun_foldmap -> ('c * 'f, 'acc, 'i) fun_foldmap ->
                  ('deco, 'b, 'c) fixed * ('deco, 'e, 'f) fixed -> 'acc -> 'acc * ('deco, 'h, 'i) fixed
 end
-module type Comparor3 = sig
+module type Comparor = sig
   type ('a, 'b, 'c) fixable
   type ('deco, 'b, 'c) fixed
   val compare : 'b compare -> 'c compare -> ('d, 'b, 'c) fixed compare
