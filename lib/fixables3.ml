@@ -49,7 +49,8 @@ module type Fixed3 = sig
           val map : ((('deco, 'b, 'c) t, 'd, 'e) fixable -> (('deco, 'b, 'c) t, 'b, 'c) fixable) -> ('deco, 'd, 'e) t -> ('deco, 'b, 'c) t
           val foldmapfg : ('a, 'acc, 'c) fun_foldmap -> ('d, 'acc, 'e) fun_foldmap -> (('deco, 'a, 'd) t, 'acc, ('deco, 'c, 'e) t) fun_foldmap
           val foldmap : ('acc -> (('b, 'c, 'd) t, 'e, 'f) fixable -> 'acc * (('b, 'c, 'd) t, 'c, 'd) fixable) -> ('b, 'e, 'f) t -> 'acc -> 'acc * ('b, 'c, 'd) t
-          val decorate : ('deco_start -> (('deco_end, 'c, 'd) t, 'c, 'd) fixable -> 'deco_end) -> 'e -> ('deco_start, 'c, 'd) t -> ('deco_end, 'c, 'd) t
+          val exists : ( (('deco, 'a, 'b) t, 'a, 'b) fixable -> bool) -> ('deco, 'a, 'b) t -> bool
+          val decorate : ('deco_start -> (('deco_end, 'c, 'd) t, 'c, 'd) fixable -> 'deco_end) -> ('deco_start, 'c, 'd) t -> ('deco_end, 'c, 'd) t
         end
       (* module Traverse qui permet de contrôler le parcours de l'AST. La première fonction foldmap sur ('a, 'b, 'c) t, 'b, 'c) F.t (une valeur défixée) et kes fonctions qu'elle reçoit en paramètres permettent de contrôler le parcours : la première fonction permet de rentrer dans ses enfants, la seconde gère le cas par défaut le parcours du cas par défaut (propagation de l'accumulateur en déconstruisant le F.t) puis elle reçoit une valeur et un accumulateur et renvoie accumulateur * valeur *)
       module Traverse :

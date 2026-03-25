@@ -41,6 +41,11 @@ module Fix (F : Fixables5.Fixable5) = struct
     let rec foldmapfghi f g h i (F (d, x)) acc =
       let acc, x = Surface.foldmap (foldmapfghi f g h i) f g h i x acc in
       acc, F( d, x)
+
+    let rec decorate f (F (d, x)) =
+      let x = Surface.map (decorate f) Fun.id Fun.id Fun.id Fun.id x in
+      F (f d x, x)
+
     let rec exists f (F (_, x)) =
       f x || Surface.fold (fun x acc -> acc || exists f x) Aux.passacc Aux.passacc Aux.passacc Aux.passacc x false
   end

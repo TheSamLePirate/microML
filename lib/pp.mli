@@ -7,3 +7,4 @@ val listi : unit printer -> (Format.formatter -> int -> 'a -> unit) -> 'a list p
 val list : unit printer -> 'a printer -> 'a list printer
 val failwith : ('a, Format.formatter, unit, 'b) format4 -> 'a
 val assoc : 'a printer -> 'b printer -> ('a * 'b) list printer
+val nope : 'a printer

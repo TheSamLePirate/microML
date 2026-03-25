@@ -24,6 +24,8 @@ module Fix :
           val foldmap : ('acc -> (('deco, 'c, 'd, 'e, 'f) t, 'g, 'h, 'i, 'j) F.t -> 'acc * (('deco, 'c, 'd, 'e, 'f) t, 'c, 'd, 'e, 'f) F.t) -> (('deco, 'g, 'h, 'i, 'j) t, 'acc, ('deco, 'c, 'd, 'e, 'f) t) fun_foldmap
           val foldmapfghi : ('a, 'acc, 'c) fun_foldmap -> ('d, 'acc, 'e) fun_foldmap -> ('f, 'acc, 'g) fun_foldmap -> ('h, 'acc, 'i) fun_foldmap -> (('deco, 'a, 'd, 'f, 'h) t, 'acc, ('deco, 'c, 'e, 'g, 'i) t) fun_foldmap
           val exists : ((('deco, 'b, 'c, 'd, 'e) t, 'b, 'c, 'd, 'e) F.t -> bool) -> ('deco, 'b, 'c, 'd, 'e) t -> bool
+          val decorate : ('deco_start -> (('deco_end, 'c, 'd, 'e, 'f) t, 'c, 'd, 'e, 'f) F.t -> 'deco_end) -> ('deco_start, 'c, 'd, 'e, 'f) t -> ('deco_end, 'c, 'd, 'e, 'f) t
+
         end
       module Traverse :
         sig

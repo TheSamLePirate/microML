@@ -16,3 +16,5 @@ let assoc ppa ppb f li =
   Format.fprintf f "{ @[<v>%a@]}"
     (list (fun f () -> Format.fprintf f ";@\n")
        (fun f (a, b) -> Format.fprintf f "%a=%a" ppa a ppb b)) li
+
+let nope _f _ = ()
