@@ -1,6 +1,6 @@
 module Fix3 = LibCore.Lib.Fix3
 module Fix4 = LibCore.Lib.Fix4
-module Fix5 = LibCore.Lib.Fix5
+module Fix5 = LibCore.Fix5.Fix
 module Pp = LibCore.Pp
 module Ident = LibCore.Ident
 
