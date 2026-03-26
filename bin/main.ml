@@ -1,3 +1,5 @@
+open LibCore.Passes
+
 let debug = ref []
 let eval = ref false
 let file = ref None
@@ -25,10 +27,9 @@ let () =
     | Some f -> f
     | None -> raise (Arg.Bad "missing input file")
   in try
-    if !eval then
-      ignore (Miniml.Passes.pipeline_eval options filename)
-    else
-      ignore (Miniml.Passes.pipeline_llvm options filename !output_file !runtime_file !runtime_header_dir)
+    if !eval
+    then ignore (Miniml.Passes.parse_file filename |>~ Miniml.Passes.pipeline_eval options)
+    else ignore (Miniml.Passes.parse_file filename |>~ Miniml.Passes.pipeline_llvm options !output_file !runtime_file !runtime_header_dir)
   with (Failure msg) as e ->
     Format.printf "%s\n\n" msg;
     raise e

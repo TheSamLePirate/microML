@@ -31,7 +31,7 @@ module Make(B:LibCore.Ident.Fields)(BTarget:LibCore.Ident.FreshableFields) = str
        let acc, ty = Ty.Fixed.Deep.foldmapfgh process LibCore.Aux.idacc LibCore.Aux.idacc ty acc in
        acc, External (binding, ty, s)
 
-  let passe = { LibCore.Passes.init = B.Map.empty, BTarget.init; process = process; }
+  let passe = { LibCore.Passes.init = B.Map.empty, BTarget.init; process = process; final = LibCore.Passes.nofinal;}
   let debug b_pp tyv_pp tyb_pp f e = Ast.TopLvl.pp BTarget.pp b_pp tyv_pp tyb_pp f e
 
 end

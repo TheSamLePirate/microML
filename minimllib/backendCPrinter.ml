@@ -3,6 +3,8 @@ module Pp = LibCore.Pp
 
 module Make(B:Ident.Bindings) = struct
 
+  type out = {main: unit Pp.printer list; functions: unit Pp.printer list}
+
   let pp_atom f = function
     | Fixable.Native n -> Format.fprintf f "%s" n
     | Fixable.GlobalVar v | Var v -> B.pp f v
@@ -94,5 +96,6 @@ module Make(B:Ident.Bindings) = struct
       (Pp.list (Pp.sep "@\n") pp_function) program.functions
       (Pp.list (Pp.sep "@\n") pp_entry_decl) program.entry
 
-  let passe = { LibCore.Passes.init = [ ]; process = process }
+  let passe = { LibCore.Passes.init = [ ]; process = process;
+              final= (fun acc funs -> {main=acc; functions=funs})}
 end

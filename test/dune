@@ -9,3 +9,7 @@
    t_notype0.ml t_notype1.ml t_notype2.ml t_notype3.ml t_notype4.ml t_bindings.ml
    t_lazy.ml t_lazy1.ml
    ))
+
+(test
+ (name unit)
+ (libraries libCore))

@@ -134,6 +134,6 @@ let rec uncell f = function
        let value = compile expr env in
        let env = B.Map.add binding value env in env, value
 
-  let passe = { LibCore.Passes.init = B.Map.empty; process = compile }
+  let passe = { LibCore.Passes.init = B.Map.empty; process = compile; final = LibCore.Passes.nofinal;}
 
 end
