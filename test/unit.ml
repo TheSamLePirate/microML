@@ -17,7 +17,9 @@ let pass_add = {
 
 let () = begin
     ignore (value |>~ pass_tostring ++> pass_to_int ++> pass_add);
-    ignore (value |>~ pass_tostring
-                      ++> pass_to_int
-                      ++> pass_add);
+    ignore (value |>~
+              ( may_die pass_tostring
+                ++?> may_die pass_to_int
+                ++?> may_die pass_add));
   end
+

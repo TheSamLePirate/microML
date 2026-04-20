@@ -3,15 +3,7 @@ type ('acc, 'from, 'target, 'prev, 'final ) t = {
     process :  'acc -> 'from -> 'acc * 'target;
     final : 'acc -> 'prev -> 'final;
   }
-(*
-module MayDie = struct
-  type ('acc, 'from, 'target, 'prev, 'final ) t_maydie = {
-      init : 'acc;
-      process :  'acc -> 'from -> ('acc * 'target) option;
-      final : 'acc -> 'prev -> 'final;
-    }
-end
-*)
+
 let nofinal = fun _ a -> a
 
 let print_pass pp = {init = (); final = nofinal; process = fun () value -> Format.printf "%a@\n" pp value; (), value;}
@@ -33,14 +25,19 @@ let handle_option name access pass =
 
 let handle_exception msg = Format.eprintf "%s@\n@\n" msg
 
-let may_fail : ('acc, 'from, 'target, 'prev, 'final ) t -> ('acc option, 'from, 'target option, 'prev, 'final option) t = fun pass ->
-  {init = Some pass.init; final = (fun acc x -> Option.map (fun acc -> pass.final acc x) acc);
-  process = fun acc from -> match acc with None -> None, None
-                                         | Some acc ->
-                                            try
-                                              let acc, b = pass.process acc from in
-                                              Some acc, Some b
-                                            with Failure msg -> handle_exception msg; None, None}
+let may_die : ('acc, 'from, 'target, 'prev, 'final ) t ->
+              ('acc option, 'from, 'target option, 'prev, 'final option) t = fun pass ->
+  {init = Some pass.init;
+   final = (fun acc prev -> Option.map (fun acc -> pass.final acc prev) acc);
+   process = fun acc from ->
+             match acc with
+             | Some acc ->
+                begin try
+                    let acc, next = pass.process acc from in
+                    Some acc, Some next
+                  with Failure msg -> handle_exception msg; None, None
+                end
+             | _ -> None, None}
 
 let final_pass f = {init = (); process = (fun () itm -> (), itm); final = (fun () out -> f out; out)}
 
@@ -56,7 +53,30 @@ let combine : ('acc, 'from, 'mid, 'prev, 'mid2 ) t -> ('acc2, 'mid, 'target, 'mi
              (acca, accb), target
   }
 
+let combine_may_die :
+    ('acca option, 'from, 'mid option, 'prev, 'after_mid option) t ->
+    ('accb option, 'mid, 'target option, 'after_mid, 'final option) t ->
+    ( ('acca * 'accb option) option, 'from, 'target option, 'prev, 'final option) t = fun a b ->
+  { init = Option.map (fun inita -> inita, b.init) a.init;
+    final = (fun acc v ->
+      Option.bind acc (fun (acca, accb_opt) ->
+          let mid_opt = a.final (Some acca) v in
+          Option.bind mid_opt (fun mid -> b.final accb_opt mid))
+    );
+    process = (fun acc v ->
+      match acc with
+      | None -> None, None
+      | Some (acca, accb_opt) ->
+         let acca_opt, mid_opt = a.process (Some acca) v in
+         match mid_opt with
+         | Some mid -> let accb, result = b.process accb_opt mid in
+                       (Option.map (fun acca -> acca, accb) acca_opt), result
+         | None -> None, None
+    );
+  }
+
 let (|>~) list passe =
   let acc, li = List.fold_left_map passe.process passe.init list in
   passe.final acc li
 let (++>) = combine
+let (++?>) a b = combine_may_die a b
